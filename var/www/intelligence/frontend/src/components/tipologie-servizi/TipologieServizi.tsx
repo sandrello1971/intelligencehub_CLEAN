@@ -4,14 +4,15 @@ import './TipologieServizi.css';
 interface TipologiaServizio {
   id: number;
   nome: string;
-  descrizione: string;
+  descrizione?: string;
   colore: string;
   icona: string;
   attivo: boolean;
   created_at: string;
+  updated_at: string;
 }
 
-interface TipologiaFormData {
+interface FormData {
   nome: string;
   descrizione: string;
   colore: string;
@@ -26,7 +27,8 @@ const TipologieServizi: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTipologia, setEditingTipologia] = useState<TipologiaServizio | null>(null);
-  const [formData, setFormData] = useState<TipologiaFormData>({
+  
+  const [formData, setFormData] = useState<FormData>({
     nome: '',
     descrizione: '',
     colore: '#3B82F6',
@@ -34,23 +36,17 @@ const TipologieServizi: React.FC = () => {
     attivo: true
   });
 
-  // Icone predefinite
-  const iconeDisponibili = [
-    '💰', '💻', '📊', '🎓', '📢', '⚖️', '🔧', '🎯', '📈', '🌟',
-    '🏆', '🚀', '💡', '🔥', '⭐', '📱', '🎨', '🔒', '🌐', '📋'
-  ];
-
-  // Colori predefiniti
-  const coloriDisponibili = [
-    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#6B7280',
-    '#EC4899', '#14B8A6', '#F97316', '#84CC16', '#06B6D4', '#8B5A2B'
-  ];
+  // Icone disponibili
+  const iconeDisponibili = ['📋', '💼', '🔧', '💻', '📊', '🎯', '🚀', '⚙️', '📱', '🌐'];
+  
+  // Colori disponibili
+  const coloriDisponibili = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
   // Fetch tipologie
   const fetchTipologie = async (search = '') => {
     try {
-      const searchParam = search ? `?search=${encodeURIComponent(search)}` : '';
-      const response = await fetch(`/api/v1/tipologie-servizi/${searchParam}`);
+      const query = search ? `?search=${encodeURIComponent(search)}` : '';
+      const response = await fetch(`/api/v1/tipologie-servizi/${query}`);
       const data = await response.json();
       
       if (data.success) {
@@ -63,1155 +59,39 @@ const TipologieServizi: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    fetchTipologie(searchTerm);
+  }, [searchTerm]);
+
   // Create tipologia
   const createTipologia = async () => {
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
     try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-    try {
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
       const response = await fetch('/api/v1/tipologie-servizi/', {
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         method: 'POST',
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         headers: { 'Content-Type': 'application/json' },
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       });
       
       const data = await response.json();
       
       if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-        body: JSON.stringify(formData)
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      });
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      const data = await response.json();
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      if (data.success) {
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         setShowCreateModal(false);
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         setFormData({
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
           nome: '',
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
           descrizione: '',
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
           colore: '#3B82F6',
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
           icona: '📋',
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
           attivo: true
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         });
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         fetchTipologie(searchTerm);
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
         alert(`✅ ${data.message}`);
       } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-        alert(`✅ ${data.message}`);
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      } else {
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
         alert(`❌ Errore: ${data.error || 'Creazione fallita'}`);
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
       }
     } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-      }
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
-    } catch (error) {
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
       console.error('Error creating tipologia:', error);
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
       alert('❌ Errore durante la creazione');
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
     }
-  };
-    }
-
-  // Open edit modal
-  const openEditModal = (tipologia: TipologiaServizio) => {
-    setEditingTipologia(tipologia);
-    setFormData({
-      nome: tipologia.nome,
-      descrizione: tipologia.descrizione || "",
-      colore: tipologia.colore || "#3B82F6",
-      icona: tipologia.icona || "📋",
-      attivo: tipologia.attivo
-    });
-    setShowEditModal(true);
-  };
-
-  // Update tipologia
-  const updateTipologia = async () => {
-    if (!editingTipologia) return;
-    
-    try {
-      const response = await fetch(`/api/v1/tipologie-servizi/${editingTipologia.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setShowEditModal(false);
-        setEditingTipologia(null);
-        fetchTipologie();
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Errore: ${data.detail || "Aggiornamento fallito"}`);
-      }
-    } catch (error) {
-      console.error("Error updating tipologia:", error);
-      alert("❌ Errore durante l'aggiornamento");
-    }
-  };
   };
 
   // Open edit modal
@@ -1256,9 +136,7 @@ const TipologieServizi: React.FC = () => {
 
   // Delete tipologia
   const deleteTipologia = async (tipologia: TipologiaServizio) => {
-    if (!window.confirm(`Sei sicuro di voler eliminare la tipologia "${tipologia.nome}"?`)) {
-      return;
-    }
+    if (!confirm(`Sei sicuro di voler eliminare "${tipologia.nome}"?`)) return;
     
     try {
       const response = await fetch(`/api/v1/tipologie-servizi/${tipologia.id}`, {
@@ -1279,28 +157,22 @@ const TipologieServizi: React.FC = () => {
     }
   };
 
-  // Effects
-  useEffect(() => {
-    fetchTipologie();
-  }, []);
+  // Filter tipologie
+  const filteredTipologie = tipologie.filter(tipologia =>
+    tipologia.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (tipologia.descrizione && tipologia.descrizione.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (loading) {
-    return (
-      <div className="tipologie-container">
-        <div className="loading">
-          <div className="loading-spinner"></div>
-          Caricamento tipologie...
-        </div>
-      </div>
-    );
+    return <div className="loading">Caricamento tipologie...</div>;
   }
 
   return (
-    <div className="tipologie-container">
-      <div className="tipologie-header">
-        <div className="tipologie-title">
-          <h1>🏷️ Tipologie Servizi</h1>
-          <p>Gestisci le categorie dei tuoi servizi</p>
+    <div className="tipologie-servizi">
+      <div className="page-header">
+        <div className="header-content">
+          <h1>🏷️ Tipologie di Servizi</h1>
+          <p>Gestisci le categorie per organizzare i tuoi servizi</p>
         </div>
         <button 
           className="btn btn-primary"
@@ -1310,30 +182,28 @@ const TipologieServizi: React.FC = () => {
         </button>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-number">{tipologie.length}</div>
-          <div className="stat-label">Totali</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number">{tipologie.filter(t => t.attivo).length}</div>
-          <div className="stat-label">Attive</div>
+      <div className="search-section">
+        <div className="search-input-container">
+          <input
+            type="text"
+            placeholder="🔍 Cerca tipologie..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
         </div>
       </div>
 
       <div className="tipologie-grid">
-        {tipologie.map((tipologia) => (
+        {filteredTipologie.map(tipologia => (
           <div key={tipologia.id} className="tipologia-card">
-            <div className="tipologia-card-header">
-              <div className="tipologia-preview">
-                <span 
-                  className="tipologia-icon"
-                  style={{ backgroundColor: tipologia.colore + '20', color: tipologia.colore }}
-                >
-                  {tipologia.icona}
-                </span>
-                <div className="tipologia-info">
-                  <h3>{tipologia.nome}</h3>
+            <div className="tipologia-header">
+              <div className="tipologia-icon" style={{ backgroundColor: tipologia.colore + '20', color: tipologia.colore }}>
+                {tipologia.icona}
+              </div>
+              <div className="tipologia-info">
+                <h3>{tipologia.nome}</h3>
+                <div className="tipologia-meta">
                   <span className={`status-badge ${tipologia.attivo ? 'active' : 'inactive'}`}>
                     {tipologia.attivo ? '✅ Attiva' : '❌ Inattiva'}
                   </span>
@@ -1341,13 +211,13 @@ const TipologieServizi: React.FC = () => {
               </div>
               <div className="tipologia-actions">
                 <button
-                <button
                   className="btn btn-edit btn-sm"
                   onClick={() => openEditModal(tipologia)}
                   title="Modifica"
                 >
                   ✏️
                 </button>
+                <button
                   className="btn btn-danger btn-sm"
                   onClick={() => deleteTipologia(tipologia)}
                   title="Elimina"
@@ -1365,7 +235,7 @@ const TipologieServizi: React.FC = () => {
         ))}
       </div>
 
-      {/* Create Modal - Versione semplificata */}
+      {/* Create Modal */}
       {showCreateModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -1427,6 +297,84 @@ const TipologieServizi: React.FC = () => {
                 disabled={!formData.nome}
               >
                 Crea
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingTipologia && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>✏️ Modifica Tipologia</h2>
+              <button onClick={() => setShowEditModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Nome *</label>
+                <input
+                  type="text"
+                  value={formData.nome}
+                  onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                  placeholder="Es: Servizi Digitali"
+                />
+              </div>
+              <div className="form-group">
+                <label>Descrizione</label>
+                <textarea
+                  value={formData.descrizione}
+                  onChange={(e) => setFormData({...formData, descrizione: e.target.value})}
+                  placeholder="Descrizione tipologia"
+                  rows={3}
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Icona</label>
+                  <select
+                    value={formData.icona}
+                    onChange={(e) => setFormData({...formData, icona: e.target.value})}
+                  >
+                    {iconeDisponibili.map(icona => (
+                      <option key={icona} value={icona}>{icona} {icona}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Colore</label>
+                  <select
+                    value={formData.colore}
+                    onChange={(e) => setFormData({...formData, colore: e.target.value})}
+                  >
+                    {coloriDisponibili.map(colore => (
+                      <option key={colore} value={colore}>{colore}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.attivo}
+                    onChange={(e) => setFormData({...formData, attivo: e.target.checked})}
+                  />
+                  Tipologia attiva
+                </label>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                Annulla
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={updateTipologia}
+                disabled={!formData.nome}
+              >
+                Salva Modifiche
               </button>
             </div>
           </div>

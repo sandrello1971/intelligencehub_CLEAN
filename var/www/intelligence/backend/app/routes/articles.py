@@ -1,3 +1,4 @@
+from sqlalchemy import text
 """
 Intelligence AI Platform - Articles Routes  
 API endpoints per gestione articoli
@@ -17,162 +18,206 @@ async def health_check():
 
 @router.get("/")
 async def get_articles(
-    search: Optional[str] = Query(None, description="Cerca per codice o nome"),
-    tipo_prodotto: Optional[str] = Query(None, description="Filtra per tipo: semplice o composito"),
-    attivo: Optional[bool] = Query(True, description="Filtra per articoli attivi"),
+    search: str = "",
+    tipo_prodotto: str = "",
     db: Session = Depends(get_db)
 ):
-    """Lista tutti gli articoli con filtri opzionali"""
+    """Lista articoli con responsabile"""
     try:
-        query = db.query(Articolo)
+        base_query = """
+        SELECT 
+            a.id, a.codice, a.nome, a.descrizione, a.tipo_prodotto, 
+            a.partner_id, a.prezzo_base, a.durata_mesi, a.attivo,
+            a.tipologia_servizio_id, a.responsabile_user_id,
+            a.created_at, a.updated_at,
+            u.username as responsabile_username, u.email as responsabile_email,
+            CASE 
+                WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL 
+                THEN u.first_name || ' ' || u.last_name
+                WHEN u.name IS NOT NULL AND u.surname IS NOT NULL 
+                THEN u.name || ' ' || u.surname
+                ELSE u.username
+            END as responsabile_display_name
+        FROM articoli a
+        LEFT JOIN users u ON a.responsabile_user_id = u.id
+        WHERE 1=1
+        """
         
-        if attivo is not None:
-            query = query.filter(Articolo.attivo == attivo)
-            
-        if tipo_prodotto:
-            query = query.filter(Articolo.tipo_prodotto == tipo_prodotto)
-            
+        params = {}
+        
         if search:
-            search_filter = f"%{search}%"
-            query = query.filter(
-                (Articolo.codice.ilike(search_filter)) |
-                (Articolo.nome.ilike(search_filter))
-            )
+            base_query += " AND (a.nome ILIKE :search OR a.codice ILIKE :search)"
+            params["search"] = f"%{search}%"
         
-        articoli = query.order_by(Articolo.codice).all()
+        if tipo_prodotto:
+            base_query += " AND a.tipo_prodotto = :tipo_prodotto"
+            params["tipo_prodotto"] = tipo_prodotto
+            
+        base_query += " ORDER BY a.created_at DESC"
+        
+        result = db.execute(text(base_query), params)
+        articles = []
+        
+        for row in result:
+            articles.append({
+                "id": row.id,
+                "codice": row.codice,
+                "nome": row.nome,
+                "descrizione": row.descrizione,
+                "tipo_prodotto": row.tipo_prodotto,
+                "partner_id": row.partner_id,
+                "prezzo_base": float(row.prezzo_base) if row.prezzo_base else None,
+                "durata_mesi": row.durata_mesi,
+                "attivo": row.attivo,
+                "tipologia_servizio_id": row.tipologia_servizio_id,
+                "responsabile_user_id": str(row.responsabile_user_id) if row.responsabile_user_id else None,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                # Info responsabile
+                "responsabile_username": row.responsabile_username,
+                "responsabile_email": row.responsabile_email,
+                "responsabile_display_name": row.responsabile_display_name
+            })
         
         return {
             "success": True,
-            "count": len(articoli),
-            "articles": [articolo.to_dict() for articolo in articoli]
+            "count": len(articles),
+            "articles": articles
         }
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+        return {"success": False, "error": str(e)}
 
-@router.post("/")
-async def create_article(article_data: dict, db: Session = Depends(get_db)):
-    """Crea nuovo articolo"""
+@router.get("/users-disponibili")
+async def get_users_disponibili(db: Session = Depends(get_db)):
+    """Lista utenti per assegnazione responsabilità servizi"""
     try:
-        existing = db.query(Articolo).filter(Articolo.codice == article_data.get('codice')).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Codice articolo già esistente")
+        query = text("""
+        SELECT id, username, email, first_name, last_name, name, surname, role, is_active
+        FROM users 
+        WHERE is_active = true 
+        ORDER BY 
+            CASE 
+                WHEN first_name IS NOT NULL AND last_name IS NOT NULL 
+                THEN first_name || ' ' || last_name
+                WHEN name IS NOT NULL AND surname IS NOT NULL 
+                THEN name || ' ' || surname
+                ELSE username
+            END
+        """)
         
-        if article_data.get('tipo_prodotto') not in ['semplice', 'composito']:
-            raise HTTPException(status_code=400, detail="tipo_prodotto deve essere 'semplice' o 'composito'")
+        result = db.execute(query)
+        users = []
         
-        nuovo_articolo = Articolo(
-            codice=article_data.get('codice'),
-            nome=article_data.get('nome'),
-            descrizione=article_data.get('descrizione'),
-            tipo_prodotto=article_data.get('tipo_prodotto'),
-            attivo=article_data.get('attivo', True)
-        )
-        
-        db.add(nuovo_articolo)
-        db.commit()
-        db.refresh(nuovo_articolo)
-        
-        # Se è composito, crea automaticamente un kit commerciale
-        kit_created = False
-        if nuovo_articolo.tipo_prodotto == 'composito':
-            try:
-                # Importa qui per evitare circular imports
-                from sqlalchemy import text
+        for row in result:
+            # Determina il nome da mostrare
+            display_name = None
+            if row.first_name and row.last_name:
+                display_name = f"{row.first_name} {row.last_name}"
+            elif row.name and row.surname:
+                display_name = f"{row.name} {row.surname}"
+            else:
+                display_name = row.username
                 
-                # Crea kit commerciale con SQL diretto
-                db.execute(text("""
-                    INSERT INTO kit_commerciali (nome, descrizione, articolo_principale_id, attivo, created_at)
-                    VALUES (:nome, :descrizione, :articolo_id, true, CURRENT_TIMESTAMP)
-                """), {
-                    'nome': f"Kit {nuovo_articolo.nome}",
-                    'descrizione': f"Kit commerciale per {nuovo_articolo.nome}",
-                    'articolo_id': nuovo_articolo.id
-                })
-                db.commit()
-                kit_created = True
-            except Exception as kit_error:
-                print(f"⚠️ Errore creazione kit: {kit_error}")
-        
-        result_message = f"Articolo {nuovo_articolo.codice} creato con successo"
-        if kit_created:
-            result_message += f" + Kit commerciale creato automaticamente"
+            users.append({
+                "id": str(row.id),
+                "username": row.username,
+                "email": row.email,
+                "display_name": display_name,
+                "role": row.role,
+                "is_active": row.is_active
+            })
         
         return {
             "success": True,
-            "message": result_message,
-            "article": nuovo_articolo.to_dict(),
-            "kit_created": kit_created
+            "count": len(users),
+            "users": users
         }
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Errore creazione: {str(e)}")
+        return {"success": False, "error": str(e)}
 
 @router.put("/{article_id}")
 async def update_article(article_id: int, article_data: dict, db: Session = Depends(get_db)):
-    """Aggiorna articolo esistente"""
+    """Aggiorna articolo"""
     try:
-        articolo = db.query(Articolo).filter(Articolo.id == article_id).first()
-        if not articolo:
+        # Verifica che l'articolo esista
+        check_query = text("SELECT id FROM articoli WHERE id = :article_id")
+        if not db.execute(check_query, {"article_id": article_id}).first():
             raise HTTPException(status_code=404, detail="Articolo non trovato")
         
-        # Aggiorna solo i campi forniti
-        for field, value in article_data.items():
-            if hasattr(articolo, field) and value is not None:
-                setattr(articolo, field, value)
+        # Prepara i campi per l'update
+        update_fields = []
+        params = {"article_id": article_id}
         
+        if "nome" in article_data:
+            update_fields.append("nome = :nome")
+            params["nome"] = article_data["nome"]
+            
+        if "descrizione" in article_data:
+            update_fields.append("descrizione = :descrizione")
+            params["descrizione"] = article_data["descrizione"]
+            
+        if "tipo_prodotto" in article_data:
+            update_fields.append("tipo_prodotto = :tipo_prodotto")
+            params["tipo_prodotto"] = article_data["tipo_prodotto"]
+            
+        if "tipologia_servizio_id" in article_data:
+            if article_data["tipologia_servizio_id"]:
+                update_fields.append("tipologia_servizio_id = :tipologia_servizio_id")
+                params["tipologia_servizio_id"] = article_data["tipologia_servizio_id"]
+            else:
+                update_fields.append("tipologia_servizio_id = NULL")
+                
+        if "partner_id" in article_data:
+            if article_data["partner_id"]:
+                update_fields.append("partner_id = :partner_id")
+                params["partner_id"] = article_data["partner_id"]
+            else:
+                update_fields.append("partner_id = NULL")
+                
+        if "responsabile_user_id" in article_data:
+            if article_data["responsabile_user_id"]:
+                update_fields.append("responsabile_user_id = :responsabile_user_id")
+                params["responsabile_user_id"] = article_data["responsabile_user_id"]
+            else:
+                update_fields.append("responsabile_user_id = NULL")
+                
+        if "prezzo_base" in article_data:
+            if article_data["prezzo_base"]:
+                update_fields.append("prezzo_base = :prezzo_base")
+                params["prezzo_base"] = article_data["prezzo_base"]
+            else:
+                update_fields.append("prezzo_base = NULL")
+                
+        if "durata_mesi" in article_data:
+            if article_data["durata_mesi"]:
+                update_fields.append("durata_mesi = :durata_mesi")
+                params["durata_mesi"] = article_data["durata_mesi"]
+            else:
+                update_fields.append("durata_mesi = NULL")
+                
+        if "attivo" in article_data:
+            update_fields.append("attivo = :attivo")
+            params["attivo"] = article_data["attivo"]
+        
+        if not update_fields:
+            return {"success": False, "detail": "Nessun campo da aggiornare"}
+        
+        # Esegui l'update
+        update_query = text(f"""
+        UPDATE articoli 
+        SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = :article_id
+        """)
+        
+        db.execute(update_query, params)
         db.commit()
-        db.refresh(articolo)
         
         return {
             "success": True,
-            "message": f"Articolo {articolo.codice} aggiornato con successo",
-            "article": articolo.to_dict()
+            "message": f"Articolo aggiornato con successo"
         }
-        
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Errore aggiornamento: {str(e)}")
-
-@router.delete("/{article_id}")
-async def delete_article(article_id: int, db: Session = Depends(get_db)):
-    """CANCELLA DEFINITIVAMENTE articolo"""
-    try:
-        articolo = db.query(Articolo).filter(Articolo.id == article_id).first()
-        if not articolo:
-            raise HTTPException(status_code=404, detail="Articolo non trovato")
-        
-        articolo_info = f"{articolo.codice} - {articolo.nome}"
-        
-        # Cancellazione definitiva
-        db.delete(articolo)
-        db.commit()
-        
-        return {
-            "success": True,
-            "message": f"Articolo {articolo_info} cancellato definitivamente"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Errore cancellazione: {str(e)}")
-
-@router.get("/{article_id}")
-async def get_article(article_id: int, db: Session = Depends(get_db)):
-    """Ottieni singolo articolo per ID"""
-    try:
-        articolo = db.query(Articolo).filter(Articolo.id == article_id).first()
-        if not articolo:
-            raise HTTPException(status_code=404, detail="Articolo non trovato")
-        return {"success": True, "article": articolo.to_dict()}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+        return {"success": False, "detail": str(e)}

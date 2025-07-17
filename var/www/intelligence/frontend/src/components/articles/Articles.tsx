@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import './Articles.css';
 
@@ -33,6 +32,7 @@ interface Article {
   art_kit: boolean;
   tipologia_servizio_id?: number;
   partner_id?: number;
+  responsabile_user_id?: string;
   created_at: string;
   updated_at: string;
   // Dati relazionali
@@ -49,6 +49,7 @@ interface ArticleFormData {
   durata_mesi?: number;
   tipologia_servizio_id?: number;
   partner_id?: number;
+  responsabile_user_id?: string;
 }
 
 const Articles: React.FC = () => {
@@ -56,6 +57,7 @@ const Articles: React.FC = () => {
   const [tipologie, setTipologie] = useState<TipologiaServizio[]>([]);
   const [partner, setPartner] = useState<Partner[]>([]);
   const [partnerFiltrati, setPartnerFiltrati] = useState<Partner[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -131,6 +133,18 @@ const Articles: React.FC = () => {
       setPartnerFiltrati(partner);
     }
   };
+  
+  const fetchAvailableUsers = async () => {
+    try {
+      const response = await fetch('/api/v1/articles/users-disponibili');
+      const data = await response.json();
+      if (data.success) {
+        setAvailableUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   // CRUD operations
   const createArticle = async () => {
@@ -146,10 +160,11 @@ const Articles: React.FC = () => {
       if (data.success) {
         setShowCreateModal(false);
         setFormData({
-          codice: '',
-          nome: '',
-          descrizione: '',
-          tipo_prodotto: 'semplice'
+          codice: "",
+          nome: "",
+          descrizione: "",
+          tipo_prodotto: "semplice",
+          responsabile_user_id: ""
         });
         fetchArticles(searchTerm);
         alert(`✅ ${data.message}`);
@@ -222,6 +237,7 @@ const Articles: React.FC = () => {
       tipo_prodotto: article.tipo_prodotto,
       prezzo_base: article.prezzo_base,
       durata_mesi: article.durata_mesi,
+      responsabile_user_id: article.responsabile_user_id || "",
       tipologia_servizio_id: article.tipologia_servizio_id,
       partner_id: article.partner_id
     });
@@ -230,10 +246,11 @@ const Articles: React.FC = () => {
 
   const openCreateModal = () => {
     setFormData({
-      codice: '',
-      nome: '',
-      descrizione: '',
-      tipo_prodotto: 'semplice'
+      codice: "",
+      nome: "",
+      descrizione: "",
+      tipo_prodotto: "semplice",
+      responsabile_user_id: ""
     });
     setPartnerFiltrati(partner);
     setShowCreateModal(true);
@@ -252,6 +269,7 @@ const Articles: React.FC = () => {
     fetchArticles();
     fetchTipologie();
     fetchPartner();
+    fetchAvailableUsers();
   }, []);
 
   // Filter partner when form data changes
@@ -534,6 +552,22 @@ const Articles: React.FC = () => {
                   </select>
                 </div>
                 <div className="form-group">
+                  <label>Responsabile</label>
+                  <select
+                    value={formData.responsabile_user_id || ''}
+                    onChange={(e) => setFormData({...formData, responsabile_user_id: e.target.value || undefined})}
+                  >
+                    <option value="">Seleziona responsabile...</option>
+                    {availableUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.display_name} ({user.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
                   <label>Prezzo Base (€)</label>
                   <input
                     type="number"
@@ -543,15 +577,14 @@ const Articles: React.FC = () => {
                     step="0.01"
                   />
                 </div>
-              </div>
-              <div className="form-group">
-                <label>Durata (mesi)</label>
-                <input
-                  type="number"
-                  value={formData.durata_mesi || ''}
-                  onChange={(e) => setFormData({...formData, durata_mesi: parseInt(e.target.value) || undefined})}
-                  placeholder="24"
-                />
+                <div className="form-group">
+                  <label>Durata (mesi)</label>
+                  <input
+                    type="number"
+                    value={formData.durata_mesi || ''}
+                    onChange={(e) => setFormData({...formData, durata_mesi: parseInt(e.target.value) || undefined})}
+                  />
+                </div>
               </div>
             </div>
             <div className="modal-footer">
@@ -663,13 +696,29 @@ const Articles: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="form-group">
-                <label>Durata (mesi)</label>
-                <input
-                  type="number"
-                  value={formData.durata_mesi || ''}
-                  onChange={(e) => setFormData({...formData, durata_mesi: parseInt(e.target.value) || undefined})}
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Durata (mesi)</label>
+                  <input
+                    type="number"
+                    value={formData.durata_mesi || ''}
+                    onChange={(e) => setFormData({...formData, durata_mesi: parseInt(e.target.value) || undefined})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Responsabile</label>
+                  <select
+                    value={formData.responsabile_user_id || ''}
+                    onChange={(e) => setFormData({...formData, responsabile_user_id: e.target.value || undefined})}
+                  >
+                    <option value="">Seleziona responsabile...</option>
+                    {availableUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.display_name} ({user.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="modal-footer">

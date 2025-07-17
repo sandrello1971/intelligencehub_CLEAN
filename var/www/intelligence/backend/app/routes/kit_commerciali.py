@@ -16,32 +16,67 @@ class KitCreate(BaseModel):
     articolo_principale_id: Optional[int] = None
     attivo: bool = True
 
+class KitArticoloCreate(BaseModel):
+    articolo_id: int
+    quantita: int = 1
+    obbligatorio: bool = False
+    ordine: int = 0
+
 @router.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "kit-commerciali"}
 
 @router.get("/")
+# Sostituisci l'endpoint GET "/" nel file kit_commerciali.py con questo:
+
+@router.get("/")
 async def get_kits(db: Session = Depends(get_db)):
-    """Lista kit commerciali dal DB"""
+    """Lista kit commerciali dal DB con articoli"""
     try:
-        query = text("""
+        # Query principale per i kit
+        kits_query = text("""
         SELECT id, nome, descrizione, articolo_principale_id, attivo, created_at
         FROM kit_commerciali 
         ORDER BY created_at DESC
         """)
         
-        result = db.execute(query)
+        kits_result = db.execute(kits_query)
         kits = []
         
-        for row in result:
+        for kit_row in kits_result:
+            # Query per gli articoli di questo kit
+            articoli_query = text("""
+                SELECT ka.id, ka.quantita, ka.obbligatorio, ka.ordine,
+                       a.id as articolo_id, a.codice as articolo_codice, 
+                       a.nome as articolo_nome
+                FROM kit_articoli ka
+                JOIN articoli a ON ka.articolo_id = a.id
+                WHERE ka.kit_commerciale_id = :kit_id
+                ORDER BY ka.ordine, ka.id
+            """)
+            
+            articoli_result = db.execute(articoli_query, {"kit_id": kit_row.id})
+            articoli = []
+            
+            for articolo_row in articoli_result:
+                articoli.append({
+                    "id": articolo_row.id,
+                    "articolo_id": articolo_row.articolo_id,
+                    "articolo_codice": articolo_row.articolo_codice,
+                    "articolo_nome": articolo_row.articolo_nome,
+                    "quantita": articolo_row.quantita,
+                    "obbligatorio": articolo_row.obbligatorio,
+                    "ordine": articolo_row.ordine
+                })
+            
             kits.append({
-                "id": row.id,
-                "nome": row.nome,
-                "descrizione": row.descrizione,
-                "articolo_principale_id": row.articolo_principale_id,
-                "attivo": row.attivo,
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "articoli": []  # Vuoto per ora
+                "id": kit_row.id,
+                "nome": kit_row.nome,
+                "descrizione": kit_row.descrizione,
+                "articolo_principale_id": kit_row.articolo_principale_id,
+                "attivo": kit_row.attivo,
+                "created_at": kit_row.created_at.isoformat() if kit_row.created_at else None,
+                "articoli": articoli  # Ora contiene i servizi reali
             })
         
         return {
@@ -51,7 +86,6 @@ async def get_kits(db: Session = Depends(get_db)):
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
-
 @router.get("/articoli-disponibili")
 async def get_articoli_disponibili(db: Session = Depends(get_db)):
     """Lista articoli per i kit"""
@@ -204,3 +238,107 @@ async def update_kit(kit_id: int, kit_data: KitCreate, db: Session = Depends(get
     except Exception as e:
         db.rollback()
         return {"success": False, "error": str(e)}
+
+@router.post("/{kit_id}/articoli")
+async def add_articolo_to_kit(
+    kit_id: int, 
+    articolo_data: KitArticoloCreate,
+    db: Session = Depends(get_db)
+):
+    """Aggiungi articolo a kit commerciale"""
+    try:
+        # Verifica che il kit esista
+        kit_check = db.execute(text("SELECT id FROM kit_commerciali WHERE id = :kit_id"), 
+                              {"kit_id": kit_id})
+        if not kit_check.fetchone():
+            raise HTTPException(status_code=404, detail="Kit non trovato")
+            
+        # Verifica che l'articolo esista
+        articolo_check = db.execute(text("SELECT id, nome FROM articoli WHERE id = :articolo_id"), 
+                                  {"articolo_id": articolo_data.articolo_id})
+        articolo = articolo_check.fetchone()
+        if not articolo:
+            raise HTTPException(status_code=404, detail="Articolo non trovato")
+            
+        # Verifica che l'articolo non sia già nel kit
+        existing_check = db.execute(text("""
+            SELECT id FROM kit_articoli 
+            WHERE kit_commerciale_id = :kit_id AND articolo_id = :articolo_id
+        """), {"kit_id": kit_id, "articolo_id": articolo_data.articolo_id})
+        
+        if existing_check.fetchone():
+            return {"success": False, "detail": "Articolo già presente nel kit"}
+            
+        # Inserisci l'articolo nel kit
+        insert_query = text("""
+            INSERT INTO kit_articoli (kit_commerciale_id, articolo_id, quantita, obbligatorio, ordine)
+            VALUES (:kit_id, :articolo_id, :quantita, :obbligatorio, :ordine)
+        """)
+        
+        db.execute(insert_query, {
+            "kit_id": kit_id,
+            "articolo_id": articolo_data.articolo_id,
+            "quantita": articolo_data.quantita,
+            "obbligatorio": articolo_data.obbligatorio,
+            "ordine": articolo_data.ordine
+        })
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Articolo '{articolo.nome}' aggiunto al kit"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "detail": str(e)}
+
+@router.delete("/{kit_id}/articoli/{articolo_kit_id}")
+async def remove_articolo_from_kit(
+    kit_id: int, 
+    articolo_kit_id: int,
+    db: Session = Depends(get_db)
+):
+    """Rimuovi articolo da kit commerciale"""
+    try:
+        # Verifica che l'articolo sia nel kit
+        check_query = text("""
+            SELECT ka.id, a.nome 
+            FROM kit_articoli ka
+            JOIN articoli a ON ka.articolo_id = a.id
+            WHERE ka.id = :articolo_kit_id AND ka.kit_commerciale_id = :kit_id
+        """)
+        
+        result = db.execute(check_query, {
+            "articolo_kit_id": articolo_kit_id,
+            "kit_id": kit_id
+        })
+        
+        articolo_data = result.fetchone()
+        if not articolo_data:
+            raise HTTPException(status_code=404, detail="Articolo non trovato nel kit")
+            
+        # Rimuovi l'articolo dal kit
+        delete_query = text("""
+            DELETE FROM kit_articoli 
+            WHERE id = :articolo_kit_id AND kit_commerciale_id = :kit_id
+        """)
+        
+        db.execute(delete_query, {
+            "articolo_kit_id": articolo_kit_id,
+            "kit_id": kit_id
+        })
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Articolo '{articolo_data.nome}' rimosso dal kit"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "detail": str(e)}
