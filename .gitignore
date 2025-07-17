@@ -50,3 +50,5 @@ redis/
 # Large files
 treenew.txt
 tree_structure.txt
+package-lock.json
+yarn.lock
