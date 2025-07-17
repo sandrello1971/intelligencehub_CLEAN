@@ -1,0 +1,78 @@
+"""
+Intelligence Platform - Main Application
+FastAPI entry point with original router system
+"""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import importlib
+
+# Create FastAPI app
+app = FastAPI(
+    title="Intelligence Platform API",
+    description="AI-powered business intelligence platform",
+    version="5.0"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Dynamic router loading system (original)
+routers_loaded = {}
+
+# Load routers dynamically
+router_modules = ['rag', 'intellichat', 'webscraping', 'auth']
+
+for module_name in router_modules:
+    try:
+        module = importlib.import_module(f'app.routes.{module_name}')
+        if hasattr(module, 'router'):
+            routers_loaded[module_name] = module.router
+            print(f"✅ {module_name} router loaded")
+    except Exception as e:
+        print(f"❌ {module_name} router failed: {e}")
+        routers_loaded[module_name] = None
+
+# Register loaded routers
+if routers_loaded.get('rag'):
+    app.include_router(routers_loaded['rag'], prefix="/api/v1")
+
+if routers_loaded.get('intellichat'):
+    app.include_router(routers_loaded['intellichat'], prefix="/api/v1")
+
+if routers_loaded.get('webscraping'):
+if routers_loaded.get("auth"):
+    app.include_router(routers_loaded["auth"], prefix="/api/v1/auth")
+    app.include_router(routers_loaded['webscraping'], prefix="/api")
+
+# Basic routes
+@app.get("/")
+async def root():
+    return {"message": "Intelligence Platform API v5.0", "status": "healthy"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "version": "5.0", "service": "intelligence-platform"}
+
+# Kit Commerciali Module (new)
+try:
+    from app.routes.kit_commerciali import router as kit_commerciali_router
+    app.include_router(kit_commerciali_router, prefix="/api/v1")
+    print("✅ Kit Commerciali registered successfully")
+except Exception as e:
+    print(f"❌ Kit Commerciali failed: {e}")
+
+# Articles Module
+try:
+    from app.routes.articles import router as articles_router
+    app.include_router(articles_router)
+    print("✅ Articles registered successfully")
+except Exception as e:
+    print(f"❌ Articles failed: {e}")
+

@@ -1,0 +1,346 @@
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Form
+from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
+import asyncio
+import os
+from pathlib import Path
+import shutil
+import uuid
+from datetime import datetime
+
+from app.core.database import get_db
+from app.modules.rag_engine.knowledge_manager import KnowledgeManager
+from app.modules.rag_engine.document_processor import DocumentProcessor
+from app.modules.rag_engine.vector_service import VectorRAGService
+
+
+def cosine_similarity(vec1, vec2):
+    """Calcola cosine similarity tra due vettori"""
+    import numpy as np
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    
+    # Calcola cosine similarity
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    
+    if norm1 == 0 or norm2 == 0:
+        return 0
+    
+    return dot_product / (norm1 * norm2)
+
+
+router = APIRouter(prefix="/rag", tags=["RAG Knowledge Management"])
+
+# Initialize services
+km = KnowledgeManager()
+doc_processor = DocumentProcessor()
+vector_service = VectorRAGService()
+
+UPLOAD_DIR = Path("/var/www/intelligence/backend/uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+@router.get("/health")
+async def rag_health_check():
+    """Health check completo del sistema RAG"""
+    health = await km.health_check()
+    
+    # Test aggiuntivi
+    try:
+        # Test Qdrant connection
+        qdrant_stats = vector_service.get_stats()
+        health['qdrant_detailed'] = qdrant_stats
+        
+        # Test OpenAI embeddings
+        test_embedding = await vector_service.generate_embeddings("test")
+        health['openai_embeddings'] = f"OK - {len(test_embedding)} dimensions"
+        
+    except Exception as e:
+        health['additional_checks_error'] = str(e)
+    
+    return health
+
+@router.get("/stats")
+async def get_rag_stats():
+    """Statistiche complete del sistema RAG"""
+    try:
+        vector_stats = vector_service.get_stats()
+        
+        return {
+            "vector_database": vector_stats,
+            "supported_formats": doc_processor.get_supported_formats(),
+            "upload_directory": str(UPLOAD_DIR),
+            "upload_dir_exists": UPLOAD_DIR.exists(),
+            "status": "operational",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+@router.post("/test-embedding")
+async def test_embedding(text: str = "Test document for RAG system"):
+    """Test rapido generazione embeddings"""
+    try:
+        embedding = await vector_service.generate_embeddings(text)
+        return {
+            "success": True,
+            "text": text,
+            "embedding_dimensions": len(embedding),
+            "embedding_preview": embedding[:5],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore embedding: {str(e)}")
+
+@router.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    company_id: int = Form(1),
+    description: Optional[str] = Form(None)
+):
+    """Upload e processamento documento"""
+    try:
+        # Verifica formato supportato
+        file_extension = Path(file.filename).suffix.lower()
+        if file_extension not in doc_processor.get_supported_formats():
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Formato {file_extension} non supportato. Formati supportati: {doc_processor.get_supported_formats()}"
+            )
+        
+        # Genera ID univoco per il documento
+        document_id = str(uuid.uuid4())
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        safe_filename = f"{timestamp}_{document_id}_{file.filename}"
+        file_path = UPLOAD_DIR / safe_filename
+        
+        # Salva file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        file_size = file_path.stat().st_size
+        
+        # Estrai testo dal documento
+        extraction_result = await doc_processor.extract_text(file_path)
+        
+        return {
+            "success": True,
+            "message": "Documento caricato e processato con successo",
+            "document_id": document_id,
+            "filename": file.filename,
+            "safe_filename": safe_filename,
+            "size": file_size,
+            "company_id": company_id,
+            "description": description,
+            "format": file_extension,
+            "extraction": extraction_result,
+            "status": "processed",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        # Cleanup file if error
+        if 'file_path' in locals() and file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Errore upload: {str(e)}")
+
+@router.post("/search")
+async def semantic_search(
+    request: dict
+):
+    """Ricerca semantica nei documenti"""
+    try:
+        query = request.get("query", "")
+        limit = request.get("limit", 5)
+        score_threshold = request.get("score_threshold", 0.7)
+        
+        if not query:
+            raise HTTPException(status_code=400, detail="Query richiesta")
+        
+        # Genera embedding per la query
+        query_embedding = await vector_service.generate_embeddings(query)
+        
+        # TODO: Implementa ricerca in Qdrant quando avremo documenti indicizzati
+        
+        return {
+            "query": query,
+            "query_embedding_dimensions": len(query_embedding),
+            "results": [],
+            "total_results": 0,
+            "search_params": {
+                "limit": limit,
+                "score_threshold": score_threshold
+            },
+            "status": "search_ready_pending_indexed_documents",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore ricerca: {str(e)}")
+
+@router.get("/documents")
+async def list_documents():
+    """Lista documenti caricati"""
+    try:
+        files = list(UPLOAD_DIR.glob("*"))
+        documents = []
+        
+        for file_path in files:
+            if file_path.is_file():
+                documents.append({
+                    "filename": file_path.name,
+                    "size": file_path.stat().st_size,
+                    "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
+                    "format": file_path.suffix.lower()
+                })
+        
+        return {
+            "documents": documents,
+            "total": len(documents),
+            "upload_directory": str(UPLOAD_DIR),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore lista documenti: {str(e)}")
+
+
+@router.delete("/documents/{document_filename}")
+async def delete_document(document_filename: str):
+    """Cancella documento dalla knowledge base"""
+    try:
+        # Trova il file nella directory uploads
+        file_path = UPLOAD_DIR / document_filename
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail=f"Documento {document_filename} non trovato")
+        
+        # Rimuovi file fisico
+        file_path.unlink()
+        
+        # TODO: Rimuovi anche da Qdrant quando sarà implementato l'indexing
+        # vector_service.delete_document_vectors(document_filename)
+        
+        return {
+            "success": True,
+            "message": f"Documento {document_filename} cancellato con successo",
+            "filename": document_filename,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore cancellazione: {str(e)}")
+@router.post("/chat")
+async def rag_chat(
+    request: dict
+):
+    """Chat con RAG - Interroga documenti usando AI"""
+    try:
+        query = request.get("query", "")
+        if not query:
+            raise HTTPException(status_code=400, detail="Query richiesta")
+        
+        # Step 1: Genera embedding per la query
+        query_embedding = await vector_service.generate_embeddings(query)
+        
+        # Step 2: Cerca documenti simili (TODO: implementare ricerca Qdrant)
+        # Per ora usiamo una ricerca semplice sui documenti
+        documents = list(UPLOAD_DIR.glob("*.txt"))
+        relevant_docs = []
+        
+        for doc_path in documents[:3]:  # Limita a 3 documenti
+            try:
+                with open(doc_path, 'r', encoding='utf-8') as f:
+                    content = f.read()[:1000]  # Primi 1000 caratteri
+                    relevant_docs.append({
+                        "filename": doc_path.name,
+                        "content": content
+                    })
+            except:
+                continue
+        
+        # Step 3: Genera risposta con GPT-4 usando context
+        import openai
+        
+        # Costruisci context dai documenti
+        context = "\n\n".join([f"Documento: {doc['filename']}\n{doc['content']}" for doc in relevant_docs])
+        
+        # Prompt per GPT-4
+        system_prompt = f"""Sei un assistente AI che risponde alle domande basandoti sui documenti forniti.
+        
+Context dai documenti:
+{context}
+
+Rispondi alla domanda dell'utente basandoti SOLO sui documenti forniti. Se l'informazione non è nei documenti, dillo chiaramente."""
+
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": query}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        return {
+            "success": True,
+            "query": query,
+            "response": ai_response,
+            "sources": [doc["filename"] for doc in relevant_docs],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore chat RAG: {str(e)}")
+
+@router.get("/specializations")
+async def get_specializations():
+    """Rileva specializzazioni dai documenti caricati"""
+    try:
+        documents = list(UPLOAD_DIR.glob("*.txt")) + list(UPLOAD_DIR.glob("*.pdf")) + list(UPLOAD_DIR.glob("*.docx"))
+        document_topics = set()
+        document_count = 0
+        
+        for doc_path in documents:
+            try:
+                extraction_result = await doc_processor.extract_text(doc_path)
+                if extraction_result['success']:
+                    content_text = extraction_result['text'][:2000].lower()
+                    document_count += 1
+                    
+                    # Rilevamento argomenti
+                    if any(keyword in content_text for keyword in ['patent box', 'brevetto', 'ricerca sviluppo']):
+                        document_topics.add("Patent Box e incentivi R&D")
+                    if any(keyword in content_text for keyword in ['beni trainanti', 'trainati', 'superammortamento']):
+                        document_topics.add("Beni trainanti e trainati")
+                    if any(keyword in content_text for keyword in ['fiscale', 'tributario', 'imposte', 'tasse']):
+                        document_topics.add("Analisi fiscale e tributaria")
+                    if any(keyword in content_text for keyword in ['intelligenza artificiale', 'machine learning', 'deep learning', 'ai', 'reti neurali', 'algoritmi', 'chatbot', 'gpt', 'openai', 'llm']):
+                        document_topics.add("Intelligenza Artificiale e Machine Learning")
+                    if any(keyword in content_text for keyword in ['normative', 'legge', 'decreto', 'regolamento']):
+                        document_topics.add("Normative e compliance")
+                    if any(keyword in content_text for keyword in ['strategia', 'business', 'consulenza', 'piano']):
+                        document_topics.add("Consulenza strategica aziendale")
+            except:
+                continue
+        
+        return {
+            "success": True,
+            "documents_analyzed": document_count,
+            "specializations": list(document_topics),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore analisi specializzazioni: {str(e)}")

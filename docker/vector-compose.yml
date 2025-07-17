@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: intelligence_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - /var/www/intelligence/data/qdrant:/qdrant/storage
+    environment:
+      - QDRANT__LOG_LEVEL=INFO
+      - QDRANT__STORAGE__ON_DISK_PAYLOAD=true
+      - QDRANT__STORAGE__WAL__WAL_CAPACITY_MB=32
+      - QDRANT__STORAGE__WAL__WAL_SEGMENTS_AHEAD=0
+      - QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS=2
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - intelligence-network
+
+networks:
+  intelligence-network:
+    driver: bridge
+    external: false

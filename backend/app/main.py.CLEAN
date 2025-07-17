@@ -1,0 +1,39 @@
+"""
+Intelligence Platform - Main Application
+FastAPI entry point - Clean Recreation
+"""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Create FastAPI app
+app = FastAPI(
+    title="Intelligence Platform API",
+    description="AI-powered business intelligence platform",
+    version="5.0"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Basic routes
+@app.get("/")
+async def root():
+    return {"message": "Intelligence Platform API v5.0", "status": "healthy"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "version": "5.0", "service": "intelligence-platform"}
+
+# Kit Commerciali Module
+try:
+    from app.routes.kit_commerciali import router as kit_commerciali_router
+    app.include_router(kit_commerciali_router)
+    print("✅ Kit Commerciali registered successfully")
+except Exception as e:
+    print(f"❌ Kit Commerciali failed: {e}")

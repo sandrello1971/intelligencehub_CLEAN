@@ -1,0 +1,341 @@
+/* FORCE CSS - BRUTAL OVERRIDE */
+
+* {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif !important;
+  background: #f5f5f5 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#root {
+  display: flex !important;
+  min-height: 100vh !important;
+}
+
+/* SIDEBAR FORZATA */
+.sidebar,
+nav,
+[class*="sidebar"],
+[class*="navigation"] {
+  width: 260px !important;
+  min-width: 260px !important;
+  background: #2d3748 !important;
+  color: white !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  padding: 20px !important;
+}
+
+/* LINKS SIDEBAR */
+.sidebar a,
+nav a,
+[class*="sidebar"] a,
+[class*="nav"] a {
+  display: block !important;
+  color: white !important;
+  text-decoration: none !important;
+  padding: 12px 16px !important;
+  margin: 4px 0 !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+}
+
+.sidebar a:hover,
+nav a:hover {
+  background: rgba(255,255,255,0.1) !important;
+}
+
+/* MAIN CONTENT FORZATO */
+.main-content,
+main,
+[class*="main"],
+[class*="content"] {
+  margin-left: 260px !important;
+  width: calc(100% - 260px) !important;
+  min-height: 100vh !important;
+  background: white !important;
+  padding: 20px !important;
+}
+
+/* HEADER PAGES */
+h1, h2, h3 {
+  color: #2d3748 !important;
+  margin-bottom: 20px !important;
+  font-weight: 700 !important;
+}
+
+h1 { font-size: 32px !important; }
+h2 { font-size: 24px !important; }
+h3 { font-size: 18px !important; }
+
+/* CARDS FORZATE */
+.card,
+[class*="card"],
+div[class*="bg-white"],
+div[class*="shadow"] {
+  background: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  padding: 24px !important;
+  margin-bottom: 20px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+/* BUTTONS FORZATI */
+button,
+.btn,
+[class*="btn"],
+input[type="submit"] {
+  background: #3182ce !important;
+  color: white !important;
+  border: none !important;
+  padding: 12px 20px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+button:hover {
+  background: #2c5aa0 !important;
+}
+
+/* USER GRID FORZATA */
+[class*="grid"],
+[class*="user"] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 20px !important;
+}
+
+/* STATS FORZATE */
+[class*="stat"] {
+  text-align: center !important;
+  padding: 30px !important;
+  background: white !important;
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+[class*="stat"] h2,
+[class*="stat"] .number {
+  font-size: 48px !important;
+  font-weight: 800 !important;
+  color: #3182ce !important;
+  margin-bottom: 10px !important;
+}
+
+/* INPUT FORZATI */
+input,
+textarea,
+select {
+  width: 100% !important;
+  padding: 12px 16px !important;
+  border: 1px solid #d2d6dc !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  background: white !important;
+}
+
+input:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: #3182ce !important;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1) !important;
+}
+
+/* CHAT FORZATA */
+[class*="chat"] {
+  height: 70vh !important;
+  background: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* OVERRIDE QUALSIASI COSA */
+div, span, section, article {
+  font-family: inherit !important;
+}
+
+/* NASCONDI COSE BRUTTE */
+[class*="loading"],
+[class*="spinner"] {
+  display: none !important;
+}
+
+/* ========================================
+   BRUTAL OVERRIDE PER CONTENUTI PAGINE
+   ======================================== */
+
+/* FORZA TUTTO IL MAIN CONTENT */
+.main-content * {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* FORZA HEADER PAGINE */
+.main-content h1,
+.main-content h2,
+.main-content h3,
+.main-content h4,
+.main-content h5 {
+  color: #1f2937 !important;
+  font-weight: 700 !important;
+  margin-bottom: 24px !important;
+  margin-top: 0 !important;
+}
+
+.main-content h1 { font-size: 28px !important; }
+.main-content h2 { font-size: 24px !important; }
+.main-content h3 { font-size: 20px !important; }
+
+/* FORZA STATS CARDS */
+.main-content [class*="grid"],
+.main-content [class*="stat"],
+.main-content [class*="card"],
+.main-content > div > div {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  padding: 24px !important;
+  margin: 0 0 20px 0 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  display: block !important;
+}
+
+/* FORZA GRID LAYOUTS */
+.main-content > div {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  gap: 20px !important;
+  padding: 20px !important;
+}
+
+/* FORZA NUMERI STATISTICHE */
+.main-content [class*="text-"] span,
+.main-content [class*="text-"] div,
+.main-content h2:first-child,
+.main-content div:first-child {
+  font-size: 36px !important;
+  font-weight: 800 !important;
+  color: #1976d2 !important;
+  text-align: center !important;
+  display: block !important;
+  margin-bottom: 12px !important;
+}
+
+/* FORZA LABELS */
+.main-content p,
+.main-content span:not(:first-child),
+.main-content div:not(:first-child) {
+  font-size: 14px !important;
+  color: #6b7280 !important;
+  text-align: center !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* FORZA BUTTONS */
+.main-content button,
+.main-content [role="button"],
+.main-content [class*="btn"],
+.main-content [class*="Button"] {
+  background: #1976d2 !important;
+  color: white !important;
+  border: none !important;
+  padding: 12px 20px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  margin: 8px !important;
+}
+
+.main-content button:hover {
+  background: #1565c0 !important;
+}
+
+/* FORZA USER CARDS */
+.main-content [class*="user"],
+.main-content > div > div > div {
+  display: flex !important;
+  align-items: center !important;
+  padding: 20px !important;
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+/* FORZA AVATAR CIRCOLARI */
+.main-content [class*="avatar"],
+.main-content [class*="Avatar"],
+.main-content span[class*="Mui"] {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  margin-right: 16px !important;
+  color: white !important;
+}
+
+/* FORZA CHAT INTERFACE */
+.main-content [class*="chat"],
+.main-content [class*="Chat"] {
+  height: 70vh !important;
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+}
+
+/* FORZA TEXTAREA */
+.main-content textarea,
+.main-content input[type="text"] {
+  width: 100% !important;
+  padding: 16px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  background: white !important;
+  min-height: 80px !important;
+}
+
+/* HIDE MATERIAL-UI CRUFT */
+.main-content [class*="Mui"]:not([class*="Avatar"]) {
+  display: none !important;
+}
+
+/* OVERRIDE QUALSIASI COLORE DI SFONDO */
+.main-content [class*="bg-"] {
+  background: white !important;
+}
+
+/* OVERRIDE FLEX LAYOUTS BROKEN */
+.main-content [class*="flex"] {
+  display: block !important;
+}
+
+/* FORZA TESTO NERO */
+.main-content [class*="text-"] {
+  color: #1f2937 !important;
+}

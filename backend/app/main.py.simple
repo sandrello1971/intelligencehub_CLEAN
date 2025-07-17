@@ -1,0 +1,60 @@
+"""
+Intelligence AI Platform - Main FastAPI Application
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Import configuration and routes
+from app.core.config import settings
+from app.routes import auth
+
+# Create FastAPI app
+app = FastAPI(
+    title="🧠 Intelligence AI Platform",
+    description="Advanced AI-powered business management platform for SMEs",
+    version="2.0.0",
+    contact={
+        "name": "Intelligence AI Platform", 
+        "email": "stefano@enduser-digital.com",
+    },
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS + [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://intelligenceai.enduser-digital.com"
+    ],
+    allow_credentials=True,  
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Health check
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "service": "Intelligence AI Platform",
+        "version": "2.0.0"
+    }
+
+@app.get("/")
+async def root():
+    return {
+        "message": "🧠 Intelligence AI Platform - Where human intelligence meets AI",
+        "version": "2.0.0",
+        "docs": "/docs"
+    }
+
+# Include authentication routes
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
