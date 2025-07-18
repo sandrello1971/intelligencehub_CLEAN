@@ -12,6 +12,12 @@ class TaskSLABase(BaseModel):
 class TaskSLAResponse(TaskSLABase):
     """Schema risposta con deadline calcolate"""
     sla_deadline: Optional[datetime] = None
+    description: Optional[str]
+    sla_giorni: Optional[int]
+    warning_giorni: Optional[int]
+    escalation_giorni: Optional[int]
+    warning_deadline: Optional[datetime]
+    escalation_deadline: Optional[datetime]
     warning_deadline: Optional[datetime] = None
     escalation_deadline: Optional[datetime] = None
     
@@ -47,6 +53,12 @@ class TaskCreate(BaseModel):
     
     # SLA manuali (opzionali)
     sla_deadline: Optional[datetime] = None
+    description: Optional[str]
+    sla_giorni: Optional[int]
+    warning_giorni: Optional[int]
+    escalation_giorni: Optional[int]
+    warning_deadline: Optional[datetime]
+    escalation_deadline: Optional[datetime]
     warning_deadline: Optional[datetime] = None
     escalation_deadline: Optional[datetime] = None
     
@@ -71,6 +83,12 @@ class TaskUpdate(BaseModel):
     
     # SLA manuali
     sla_deadline: Optional[datetime] = None
+    description: Optional[str]
+    sla_giorni: Optional[int]
+    warning_giorni: Optional[int]
+    escalation_giorni: Optional[int]
+    warning_deadline: Optional[datetime]
+    escalation_deadline: Optional[datetime]
     warning_deadline: Optional[datetime] = None
     escalation_deadline: Optional[datetime] = None
     
@@ -79,7 +97,7 @@ class TaskUpdate(BaseModel):
     estimated_hours: Optional[float] = Field(None, ge=0, le=999.99)
     actual_hours: Optional[float] = Field(None, ge=0, le=999.99)
     checklist: Optional[List[Dict[str, Any]]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    task_metadata: Optional[Dict[str, Any]] = None
 
 class TaskResponse(TaskSLAResponse):
     """Schema risposta completa task"""
@@ -103,9 +121,9 @@ class TaskResponse(TaskSLAResponse):
     task_metadata: Dict[str, Any]
     
     # Campi relazionali
-    parent_task_id: Optional[UUID]
-    company_id: Optional[int]
-    commessa_id: Optional[UUID]
+    parent_task_id: Optional[UUID] = None
+    company_id: Optional[int] = None
+    commessa_id: Optional[UUID] = None
     
     class Config:
         from_attributes = True
@@ -117,6 +135,12 @@ class TaskListItem(BaseModel):
     status: str
     assigned_to: Optional[UUID]
     sla_deadline: Optional[datetime]
+    description: Optional[str]
+    sla_giorni: Optional[int]
+    warning_giorni: Optional[int]
+    escalation_giorni: Optional[int]
+    warning_deadline: Optional[datetime]
+    escalation_deadline: Optional[datetime]
     sla_status: str  # GREEN, YELLOW, ORANGE, RED
     priorita: str
     created_at: datetime

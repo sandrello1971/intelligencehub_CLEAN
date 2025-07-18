@@ -15,6 +15,10 @@ class TaskGlobal(Base):
     tsk_description = Column(Text)
     tsk_type = Column(String(20), default='standard')
     tsk_category = Column(String(50))
+    sla_giorni = Column(Integer)
+    warning_giorni = Column(Integer, default=1)
+    escalation_giorni = Column(Integer, default=1)
+    priorita = Column(String(20), default="normale")
     created_at = Column(DateTime, default=func.now())
     
     def __repr__(self):
@@ -27,7 +31,11 @@ class TaskGlobal(Base):
             'tsk_description': self.tsk_description,
             'tsk_type': self.tsk_type,
             'tsk_category': self.tsk_category,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'sla_giorni': self.sla_giorni,
+            'warning_giorni': self.warning_giorni,
+            'escalation_giorni': self.escalation_giorni,
+            'priorita': self.priorita
         }
 
 class WkfRow(Base):

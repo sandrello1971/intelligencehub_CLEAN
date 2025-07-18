@@ -24,6 +24,6 @@ class Ticket(Base):
 #    company = relationship("Company", back_populates="tickets")
 
     # Relazioni verso User (User è già definito quando Ticket viene caricato)
-    creator = relationship("User", foreign_keys=[created_by], back_populates="created_tickets")
-    assigned_user = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_tickets")
-    company = relationship("Company")
+#    creator = relationship("User", foreign_keys=[created_by], back_populates="created_tickets")
+#    assigned_user = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_tickets")
+#    company = relationship("Company")

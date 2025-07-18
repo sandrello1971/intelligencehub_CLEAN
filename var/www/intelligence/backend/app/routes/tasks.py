@@ -47,7 +47,7 @@ def create_task(task_data: TaskCreate, db: Session = Depends(get_db)):
             priorita=task_data.priorita,
             estimated_hours=task_data.estimated_hours,
             checklist=task_data.checklist,
-            task_task_metadata=task_data.task_metadata
+            task_metadata=task_data.task_metadata
         )
         
         db.add(db_task)
@@ -146,7 +146,13 @@ def list_tasks(
             "sla_deadline": task.sla_deadline,
             "priorita": task.priorita,
             "created_at": task.created_at,
-            "sla_status": _calculate_sla_status(task, now)
+            "sla_status": _calculate_sla_status(task, now),
+            "description": task.description,
+            "sla_giorni": task.sla_giorni,
+            "warning_giorni": task.warning_giorni,
+            "escalation_giorni": task.escalation_giorni,
+            "warning_deadline": task.warning_deadline,
+            "escalation_deadline": task.escalation_deadline,
         }
         result.append(TaskListItem(**task_dict))
     
@@ -234,5 +240,11 @@ def _task_to_list_item(task: Task, now: datetime) -> TaskListItem:
         sla_deadline=task.sla_deadline,
         sla_status=_calculate_sla_status(task, now),
         priorita=task.priorita,
+        description=task.description,
+        sla_giorni=task.sla_giorni,
+        warning_giorni=task.warning_giorni,
+        escalation_giorni=task.escalation_giorni,
+        warning_deadline=task.warning_deadline,
+        escalation_deadline=task.escalation_deadline,
         created_at=task.created_at
     )

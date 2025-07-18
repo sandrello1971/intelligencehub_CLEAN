@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.er_models import TaskGlobal
 
-router = APIRouter(prefix="/api/v1/tasks-global", tags=["tasks-global"])
+router = APIRouter(prefix="/tasks-global", tags=["tasks-global"])
 
 # =====================================
 # SCHEMAS
@@ -17,11 +18,21 @@ class TaskGlobalCreate(BaseModel):
     tsk_description: Optional[str] = None
     tsk_type: str = 'standard'
     tsk_category: Optional[str] = None
+    sla_giorni: Optional[int] = None
+    warning_giorni: int = 1
+    escalation_giorni: int = 1
+    priorita: str = "normale"
+    created_at: Optional[datetime] = None
 
 class TaskGlobalUpdate(BaseModel):
     tsk_description: Optional[str] = None
     tsk_type: Optional[str] = None
     tsk_category: Optional[str] = None
+    sla_giorni: Optional[int] = None
+    warning_giorni: int = 1
+    escalation_giorni: int = 1
+    priorita: str = "normale"
+    created_at: Optional[datetime] = None
 
 class TaskGlobalResponse(BaseModel):
     id: int
@@ -29,6 +40,11 @@ class TaskGlobalResponse(BaseModel):
     tsk_description: Optional[str]
     tsk_type: str
     tsk_category: Optional[str]
+    sla_giorni: Optional[int] = None
+    warning_giorni: int = 1
+    escalation_giorni: int = 1
+    priorita: str = "normale"
+    created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True

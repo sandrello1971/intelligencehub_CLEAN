@@ -8,17 +8,17 @@ class Task(Base):
 
     # Campi base
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"))
-    milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"))
+    ticket_id = Column(UUID(as_uuid=True))
+    milestone_id = Column(UUID(as_uuid=True))
     title = Column(Text)
     description = Column(Text)
     status = Column(Text, default='todo')
     due_date = Column(Date)
-    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    assigned_to = Column(UUID(as_uuid=True))
     created_at = Column(DateTime, server_default='now()')
     
     # Template e modelli
-    modello_task_id = Column(UUID(as_uuid=True), ForeignKey("modelli_task.id"))
+    modello_task_id = Column(UUID(as_uuid=True))
     
     # SLA - CAMPI PRINCIPALI
     sla_hours = Column(Integer, default=24)
@@ -37,7 +37,11 @@ class Task(Base):
     
     # Metadata
     checklist = Column(JSONB, default=[])
-    task_task_metadata = Column(JSONB, default={})
+    task_metadata = Column(JSONB, default={})
+    priorita = Column(String(20), default="normale")
+    parent_task_id = Column(UUID(as_uuid=True))
+    company_id = Column(BigInteger)
+    commessa_id = Column(UUID(as_uuid=True))
     
 
     class Config:

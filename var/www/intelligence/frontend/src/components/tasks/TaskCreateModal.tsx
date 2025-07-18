@@ -58,7 +58,7 @@ const TaskCreateModal: React.FC<TaskCreateModalProps> = ({ onClose, onSuccess })
         payload.escalation_giorni = formData.escalation_giorni;
       }
 
-      const response = await fetch('/api/v1/tasks/', {
+      const response = await fetch('/api/v1/tasks-global/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
