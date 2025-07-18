@@ -234,3 +234,5 @@ async def update_user_temp(user_id: str, request: dict):
         return {"error": str(e)}
     finally:
         db.close()
+from app.routes import tasks_global
+app.include_router(tasks_global.router)
