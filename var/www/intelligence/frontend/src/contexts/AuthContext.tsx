@@ -32,6 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // CALCOLA isAuthenticated AUTOMATICAMENTE
   const isAuthenticated = Boolean(user);
+  console.log("🔍 AuthContext - isAuthenticated:", isAuthenticated, "user:", user, "token:", localStorage.getItem("access_token"));
 
   useEffect(() => {
     // Check se già loggato

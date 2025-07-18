@@ -18,6 +18,18 @@ const TasksGlobalManagement = () => {
 
   const API_BASE = 'https://intelligencehub.enduser-digital.com/api/v1';
 
+  const apiCall = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem("access_token");
+    return fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        ...options.headers
+      }
+    });
+  };
+
   useEffect(() => {
     fetchTasks();
     fetchCategories();
@@ -28,7 +40,10 @@ const TasksGlobalManagement = () => {
       const url = filterCategory 
         ? `${API_BASE}/tasks-global/?category=${filterCategory}`
         : `${API_BASE}/tasks-global/`;
-      const response = await fetch(url);
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if (!response.ok) throw new Error('Errore nel caricamento');
       const data = await response.json();
       setTasks(data || []);
@@ -41,7 +56,10 @@ const TasksGlobalManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE}/tasks-global/categories`);
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${API_BASE}/tasks-global/categories`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         setCategories(data || []);
@@ -54,6 +72,7 @@ const TasksGlobalManagement = () => {
   const createTask = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem("access_token");
       const response = await fetch(`${API_BASE}/tasks-global/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
