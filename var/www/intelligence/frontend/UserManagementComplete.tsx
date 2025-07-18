@@ -64,45 +64,6 @@ const UserManagement = () => {
     });
   };
 
-  const updateUser = async (e) => {
-    e.preventDefault();
-    if (!selectedUser) return;
-
-    try {
-      const payload = {
-        first_name: editForm.first_name,
-        last_name: editForm.last_name,
-        email: editForm.email,
-        role: editForm.role
-      };
-
-      // Aggiungi crm_id solo se non è vuoto
-      if (editForm.crm_id && editForm.crm_id.toString().trim() !== '') {
-        payload.crm_id = parseInt(editForm.crm_id);
-      }
-
-      const response = await fetch(`/api/v1/admin/users/${selectedUser.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Errore nell\'aggiornamento');
-      }
-
-      closeEditModal();
-      alert('Utente aggiornato con successo!');
-      fetchUsers(); // Ricarica la lista
-    } catch (error) {
-      console.error('Errore aggiornamento:', error);
-      alert('Errore nell\'aggiornamento: ' + error.message);
-    }
-  };
-
   const openCreateModal = () => {
     setIsCreateModalOpen(true);
     setNewUser({
@@ -129,11 +90,13 @@ const UserManagement = () => {
     e.preventDefault();
     try {
       const payload = {
-        first_name: newUser.first_name,
-        last_name: newUser.last_name,
+        username: newUser.email,
         email: newUser.email,
         password: newUser.password,
-        role: newUser.role
+        name: newUser.first_name,
+        surname: newUser.last_name,
+        role: newUser.role,
+        is_active: true
       };
 
       const response = await fetch(`${API_BASE}/admin/users/`, {
@@ -158,6 +121,45 @@ const UserManagement = () => {
     }
   };
 
+  const updateUser = async (e) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    try {
+      const payload = {
+        name: editForm.first_name,
+        surname: editForm.last_name,
+        email: editForm.email,
+        role: editForm.role
+      };
+
+      // Aggiungi crm_id solo se non è vuoto
+      if (editForm.crm_id && editForm.crm_id.toString().trim() !== '') {
+        payload.crm_id = parseInt(editForm.crm_id);
+      }
+
+      const response = await fetch(`${API_BASE}/admin/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Errore nell\'aggiornamento');
+      }
+
+      closeEditModal();
+      alert('Utente aggiornato con successo!');
+      fetchUsers();
+    } catch (error) {
+      console.error('Errore aggiornamento:', error);
+      alert('Errore nell\'aggiornamento: ' + error.message);
+    }
+  };
+
   const deleteUser = async (userId) => {
     try {
       const response = await fetch(`${API_BASE}/admin/users/${userId}/permanent`, {
@@ -173,6 +175,33 @@ const UserManagement = () => {
       fetchUsers();
     } catch (error) {
       alert('Errore nella cancellazione: ' + error.message);
+    }
+  };
+
+  const toggleUserStatus = async (user) => {
+    try {
+      const payload = {
+        is_active: !user.is_active
+      };
+
+      const response = await fetch(`${API_BASE}/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Errore nel cambio stato');
+      }
+
+      alert(`Utente ${!user.is_active ? 'attivato' : 'disattivato'} con successo!`);
+      fetchUsers();
+    } catch (error) {
+      console.error('Errore cambio stato:', error);
+      alert('Errore nel cambio stato: ' + error.message);
     }
   };
 
@@ -285,7 +314,7 @@ const UserManagement = () => {
                           {(user.first_name || user.name || 'N/A')} {(user.last_name || user.surname || '')}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {user.username ? `@${user.username}` : ""}
+                          @{user.username}
                         </div>
                       </div>
                     </div>
@@ -319,6 +348,12 @@ const UserManagement = () => {
                         className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
                       >
                         Modifica
+                      </button>
+                      <button 
+                        onClick={() => toggleUserStatus(user)}
+                        className={`${user.is_active ? 'text-orange-600 hover:text-orange-900 bg-orange-50 hover:bg-orange-100' : 'text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100'} px-3 py-1 rounded-md transition-colors`}
+                      >
+                        {user.is_active ? 'Disattiva' : 'Attiva'}
                       </button>
                       <button 
                         onClick={() => {

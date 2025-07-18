@@ -4,7 +4,7 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.models.users import User
 from app.schemas.users import UserCreate, UserUpdate, UserResponse, UserListResponse
-from app.core.security import get_password_hash, verify_password
+from passlib.context import CryptContext
 from app.core.auth import get_current_user
 import uuid
 from datetime import datetime
@@ -278,3 +278,12 @@ async def get_user_stats(
         "active": active_count,
         "inactive": total_users - active_count
     }
+
+# Aggiunte per funzioni di sicurezza
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
