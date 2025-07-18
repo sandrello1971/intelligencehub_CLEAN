@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 const TasksGlobalManagement = () => {
@@ -99,10 +100,13 @@ const TasksGlobalManagement = () => {
     if (!selectedTask) return;
 
     try {
+      console.log("selectedTask.id:", selectedTask.id);
+      console.log("selectedTask completo:", selectedTask);
       const response = await fetch(`${API_BASE}/tasks-global/${selectedTask.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          tsk_code: selectedTask.tsk_code,
           tsk_description: selectedTask.tsk_description,
           tsk_type: selectedTask.tsk_type,
           tsk_category: selectedTask.tsk_category
@@ -371,9 +375,20 @@ const TasksGlobalManagement = () => {
             <form onSubmit={updateTask}>
               <div className="px-6 py-4 space-y-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Codice Task *</label>
+                  <input 
+                    type="text" 
+                    value={selectedTask.tsk_code || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, tsk_code: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="es. SETUP001"
+                    required
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Descrizione *</label>
                   <textarea 
-                    value={selectedTask.tsk_description}
+                    value={selectedTask.tsk_description || ''}
                     onChange={(e) => setSelectedTask({...selectedTask, tsk_description: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
@@ -392,7 +407,7 @@ const TasksGlobalManagement = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
                   <select 
-                    value={selectedTask.tsk_type}
+                    value={selectedTask.tsk_type || 'standard'}
                     onChange={(e) => setSelectedTask({...selectedTask, tsk_type: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >

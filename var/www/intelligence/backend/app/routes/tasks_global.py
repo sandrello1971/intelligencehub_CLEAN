@@ -25,6 +25,7 @@ class TaskGlobalCreate(BaseModel):
     created_at: Optional[datetime] = None
 
 class TaskGlobalUpdate(BaseModel):
+    tsk_code: Optional[str] = None
     tsk_description: Optional[str] = None
     tsk_type: Optional[str] = None
     tsk_category: Optional[str] = None
@@ -114,6 +115,17 @@ async def update_task_global(
     
     try:
         update_data = task_data.dict(exclude_unset=True)
+
+        # Gestione speciale per tsk_code (verifica duplicati)
+        if "tsk_code" in update_data:
+            new_code = update_data["tsk_code"]
+            if new_code != task.tsk_code:
+                existing = db.query(TaskGlobal).filter(
+                    TaskGlobal.tsk_code == new_code,
+                    TaskGlobal.id != task_id
+                ).first()
+                if existing:
+                    raise HTTPException(status_code=400, detail="Codice task già esistente")
         for field, value in update_data.items():
             setattr(task, field, value)
         

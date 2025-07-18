@@ -65,7 +65,7 @@ const TaskManagement: React.FC = () => {
 
     try {
       const url = selectedTask 
-        ? `/api/v1/tasks-global/{selectedTask.id}`
+        ? `/api/v1/tasks-global/${selectedTask.id}`
         : '/api/v1/tasks-global/';
       
       const method = selectedTask ? 'PUT' : 'POST';
@@ -92,7 +92,7 @@ const TaskManagement: React.FC = () => {
 
   const deleteTask = async (taskId: number) => {
     try {
-      const response = await fetch(`/api/v1/tasks-global/{taskId}`, {
+      const response = await fetch(`/api/v1/tasks-global/${taskId}`, {
         method: 'DELETE'
       });
       
@@ -275,6 +275,7 @@ const TaskManagement: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <Clock className="w-4 h-4 text-blue-500" />
                           <div>
+                            {console.log("Task SLA debug:", task.sla_giorni, task)}
                             <span className="font-medium text-gray-700">SLA Totale:</span>
                             <p className="text-gray-600">{task.sla_giorni || 'Non definito'} giorni</p>
                           </div>
