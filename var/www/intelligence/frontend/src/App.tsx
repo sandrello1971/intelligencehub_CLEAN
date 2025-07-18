@@ -13,6 +13,7 @@ import IntelliChat from './components/chat/IntelliChat';
 import DocumentsRAG from './components/documents/DocumentsRAG';
 import WebScraping from './components/webscraping/WebScraping';
 import Assessment from './components/assessment/Assessment';
+import TaskManagement from "./components/tasks/TaskManagement";
 import EmailCenter from './components/email/EmailCenter';
 import Articles from "./components/articles/Articles";
 import TipologieServizi from "./components/tipologie-servizi/TipologieServizi";
@@ -42,6 +43,7 @@ function App() {
             <Route path="tipologie-servizi" element={<TipologieServizi />} />
             <Route path="partner" element={<Partner />} />
             <Route path="tasks-global" element={<TasksGlobalManagement />} />
+            <Route path="tasks" element={<TaskManagement />} />
             <Route path="chat" element={<IntelliChat />} />
             <Route path="documents" element={<DocumentsRAG />} />
             <Route path="web-scraping" element={<WebScraping />} />

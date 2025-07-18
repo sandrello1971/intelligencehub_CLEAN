@@ -235,4 +235,6 @@ async def update_user_temp(user_id: str, request: dict):
     finally:
         db.close()
 from app.routes import tasks_global
+from app.routes import tasks
 app.include_router(tasks_global.router)
+app.include_router(tasks.router, prefix="/api/v1")
