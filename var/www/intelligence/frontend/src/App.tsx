@@ -18,6 +18,7 @@ import Articles from "./components/articles/Articles";
 import TipologieServizi from "./components/tipologie-servizi/TipologieServizi";
 import Partner from "./components/partner/Partner";
 import KitCommerciali from "./components/kit-commerciali/KitCommerciali";
+import TasksGlobalManagement from "./components/workflow/TasksGlobalManagement";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="kit-commerciali" element={<KitCommerciali />} />
             <Route path="tipologie-servizi" element={<TipologieServizi />} />
             <Route path="partner" element={<Partner />} />
+            <Route path="tasks-global" element={<TasksGlobalManagement />} />
             <Route path="chat" element={<IntelliChat />} />
             <Route path="documents" element={<DocumentsRAG />} />
             <Route path="web-scraping" element={<WebScraping />} />
