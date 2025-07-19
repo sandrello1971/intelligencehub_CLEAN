@@ -7,6 +7,7 @@ from jose import jwt, JWTError
 
 from app.core.database import get_db
 from app.schemas.auth_schemas import LoginRequest, LoginResponse, UserProfile
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -14,8 +15,10 @@ router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT settings
-SECRET_KEY = "your-secret-key-here"
-ALGORITHM = "HS256"
+# Importa configurazioni da settings
+from app.core.config import settings
+SECRET_KEY = settings.JWT_SECRET
+ALGORITHM = settings.JWT_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -186,11 +189,19 @@ async def get_current_user_from_jwt(
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Get user from database
-        result = db.execute(text("""
-            SELECT id, email, first_name, last_name, role, is_active 
-            FROM users WHERE id = :user_id
-        """), {"user_id": user_id})
+        # Get user from database (supporta sia ID che email)
+        if '@' in user_id:
+            # Se contiene @, è un'email
+            result = db.execute(text("""
+                SELECT id, email, first_name, last_name, role, is_active 
+                FROM users WHERE email = :user_id
+            """), {"user_id": user_id})
+        else:
+            # Altrimenti è un ID
+            result = db.execute(text("""
+                SELECT id, email, first_name, last_name, role, is_active 
+                FROM users WHERE id = :user_id
+            """), {"user_id": user_id})
         
         user_data = result.fetchone()
         if not user_data:
@@ -269,11 +280,19 @@ async def get_current_user_from_jwt(
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Get user from database
-        result = db.execute(text("""
-            SELECT id, email, first_name, last_name, role, is_active 
-            FROM users WHERE id = :user_id
-        """), {"user_id": user_id})
+        # Get user from database (supporta sia ID che email)
+        if '@' in user_id:
+            # Se contiene @, è un'email
+            result = db.execute(text("""
+                SELECT id, email, first_name, last_name, role, is_active 
+                FROM users WHERE email = :user_id
+            """), {"user_id": user_id})
+        else:
+            # Altrimenti è un ID
+            result = db.execute(text("""
+                SELECT id, email, first_name, last_name, role, is_active 
+                FROM users WHERE id = :user_id
+            """), {"user_id": user_id})
         
         user_data = result.fetchone()
         if not user_data:
@@ -334,3 +353,36 @@ async def change_password_jwt(
 
 # Alias for backward compatibility
 get_current_user = get_current_user_profile
+
+@router.get("/profile")
+async def get_user_profile(
+    current_user = Depends(get_current_user_from_jwt),
+    db: Session = Depends(get_db)
+):
+    """Get current user profile"""
+    try:
+        # Ottieni dati completi utente
+        result = db.execute(text("""
+            SELECT id, username, email, first_name, last_name, name, surname, 
+                   role, is_active, last_login, must_change_password
+            FROM users WHERE id = :user_id
+        """), {"user_id": current_user.id})
+        
+        user_data = result.fetchone()
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "id": str(user_data.id),
+            "username": user_data.username,
+            "email": user_data.email,
+            "first_name": user_data.first_name or user_data.name,
+            "last_name": user_data.last_name or user_data.surname,
+            "role": user_data.role,
+            "is_active": user_data.is_active,
+            "last_login": user_data.last_login.isoformat() if user_data.last_login else None,
+            "must_change_password": user_data.must_change_password or False,
+            "permissions": {}
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

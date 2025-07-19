@@ -2,6 +2,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './components/auth/LoginPage';
+import GoogleAuthSuccess from './components/auth/GoogleAuthSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
 
@@ -27,6 +28,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/success" element={<GoogleAuthSuccess />} />
           
           <Route path="/" element={
             <ProtectedRoute>

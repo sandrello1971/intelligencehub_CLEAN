@@ -7,6 +7,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -33,6 +34,27 @@ const LoginPage: React.FC = () => {
       setError('Errore di connessione');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/auth/google/login');
+      const data = await response.json();
+      
+      if (data.authorization_url) {
+        // Redirect a Google
+        window.location.href = data.authorization_url;
+      } else {
+        setError('Errore durante il login con Google');
+      }
+    } catch (err) {
+      setError('Errore di connessione con Google');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -117,7 +139,7 @@ const LoginPage: React.FC = () => {
                   boxSizing: 'border-box'
                 }}
                 placeholder="Inserisci username o email"
-                disabled={loading}
+                disabled={loading || googleLoading}
                 onFocus={(e) => e.target.style.borderColor = '#7c3aed'}
                 onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
               />
@@ -148,7 +170,7 @@ const LoginPage: React.FC = () => {
                   boxSizing: 'border-box'
                 }}
                 placeholder="••••••••"
-                disabled={loading}
+                disabled={loading || googleLoading}
                 onFocus={(e) => e.target.style.borderColor = '#7c3aed'}
                 onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
               />
@@ -177,28 +199,29 @@ const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || googleLoading}
               style={{
                 width: '100%',
-                background: loading ? '#9ca3af' : 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+                background: (loading || googleLoading) ? '#9ca3af' : 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
                 color: 'white',
                 padding: '14px',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '16px',
                 fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor: (loading || googleLoading) ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
-                boxShadow: '0 4px 14px 0 rgba(124, 58, 237, 0.4)'
+                boxShadow: '0 4px 14px 0 rgba(124, 58, 237, 0.4)',
+                marginBottom: '16px'
               }}
               onMouseOver={(e) => {
-                if (!loading) {
+                if (!loading && !googleLoading) {
                   e.currentTarget.style.transform = 'translateY(-1px)';
                   e.currentTarget.style.boxShadow = '0 6px 20px 0 rgba(124, 58, 237, 0.5)';
                 }
               }}
               onMouseOut={(e) => {
-                if (!loading) {
+                if (!loading && !googleLoading) {
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(124, 58, 237, 0.4)';
                 }
@@ -224,9 +247,77 @@ const LoginPage: React.FC = () => {
             </button>
           </form>
 
+          {/* Divider */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            margin: '20px 0',
+            color: '#9ca3af',
+            fontSize: '14px'
+          }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }}></div>
+            <span style={{ padding: '0 16px' }}>oppure</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }}></div>
+          </div>
+
+          {/* Google Login Button */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={loading || googleLoading}
+            style={{
+              width: '100%',
+              background: (loading || googleLoading) ? '#f3f4f6' : 'white',
+              color: (loading || googleLoading) ? '#9ca3af' : '#374151',
+              padding: '14px',
+              border: '2px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: (loading || googleLoading) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '20px'
+            }}
+            onMouseOver={(e) => {
+              if (!loading && !googleLoading) {
+                e.currentTarget.style.borderColor = '#d1d5db';
+                e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(0, 0, 0, 0.1)';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!loading && !googleLoading) {
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            {googleLoading ? (
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid transparent',
+                  borderTop: '2px solid #9ca3af',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  marginRight: '8px'
+                }}></span>
+                Connessione a Google...
+              </span>
+            ) : (
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ marginRight: '12px', fontSize: '20px' }}>🔍</span>
+                Accedi con Google
+              </span>
+            )}
+          </button>
+
           <div style={{
             textAlign: 'center',
-            marginTop: '24px',
             paddingTop: '20px',
             borderTop: '1px solid #e5e7eb'
           }}>

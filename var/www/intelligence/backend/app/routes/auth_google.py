@@ -5,6 +5,7 @@ from sqlalchemy import text
 import os
 import json
 import requests
+from urllib.parse import quote
 from datetime import datetime
 
 from app.core.database import get_db
@@ -22,7 +23,7 @@ async def google_login():
         f"https://accounts.google.com/o/oauth2/auth?"
         f"client_id={client_id}&"
         f"redirect_uri={redirect_uri}&"
-        f"scope=openid email profile https://www.googleapis.com/auth/spreadsheets.readonly&"
+        f"scope=openid%20email%20profile%20https://www.googleapis.com/auth/spreadsheets.readonly&"
         f"response_type=code&"
         f"access_type=offline&"
         f"prompt=consent"
@@ -175,7 +176,7 @@ async def google_callback(code: str = None, db: Session = Depends(get_db)):
         # Redirect al frontend con token
         frontend_url = os.getenv("FRONTEND_URL")
         return RedirectResponse(
-            url=f"{frontend_url}/auth/success?token={access_token}&user={user_info['given_name']}"
+            url=f"{frontend_url}/auth/success?token={access_token}&user={quote(user_info.get('given_name', ''))}"
         )
         
     except Exception as e:

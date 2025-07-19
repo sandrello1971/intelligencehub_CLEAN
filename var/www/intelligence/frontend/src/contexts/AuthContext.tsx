@@ -1,18 +1,25 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 
 interface User {
   id: string;
   username: string;
   email: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   role: string;
+  permissions: Record<string, any>;
+  is_active: boolean;
+  last_login: string;
+  must_change_password: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; mustChangePassword?: boolean }>;
   logout: () => void;
+  refreshAuth: () => void;
   loading: boolean;
 }
 
@@ -26,78 +33,74 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // CALCOLA isAuthenticated AUTOMATICAMENTE
-  const isAuthenticated = Boolean(user);
-  console.log("🔍 AuthContext - isAuthenticated:", isAuthenticated, "user:", user, "token:", localStorage.getItem("access_token"));
-
   useEffect(() => {
-    // Check se già loggato
-    const token = localStorage.getItem('access_token');
-    const userData = localStorage.getItem('user');
-    
-    if (token && userData) {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
       try {
-        setUser(JSON.parse(userData));
-      } catch (e) {
-        localStorage.removeItem('access_token');
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
     }
     setLoading(false);
-  }, []);
+  };
 
   const login = async (email: string, password: string) => {
     try {
-      console.log('🔐 Starting login...'); // DEBUG
-      
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: email, password })
+      const response = await axios.post('/api/v1/auth/login', {
+        email,
+        password
       });
 
-      const data = await response.json();
-      console.log('📨 Backend response:', data); // DEBUG
-
-      if (response.ok && data.access_token) {
-        // CREA USER OBJECT FORZATO
-        const userData: User = {
-          id: data.user_id || "stefano-andrello-001",
-          username: email,
-          email: data.email || email,
-          name: data.name || "Stefano Andrello", 
-          role: data.role || "admin"
-        };
-
-        console.log('👤 Created user object:', userData); // DEBUG
-
-        // SALVA TUTTO
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        // AGGIORNA STATE
-        setUser(userData);
-        
-        console.log('✅ Login completed, user set:', userData); // DEBUG
-        
-        return { success: true };
-      } else {
-        return { success: false, error: 'Credenziali non valide' };
-      }
-    } catch (error) {
-      console.error('❌ Login error:', error); // DEBUG
-      return { success: false, error: 'Errore di connessione' };
+      const { access_token, user: userData } = response.data;
+      
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      return { 
+        success: true, 
+        mustChangePassword: response.data.must_change_password 
+      };
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Login failed' 
+      };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    setIsAuthenticated(false);
   };
 
   const value: AuthContextType = {
@@ -105,6 +108,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated,
     login,
     logout,
+    refreshAuth: checkAuth,
     loading
   };
 

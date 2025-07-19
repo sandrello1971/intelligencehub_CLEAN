@@ -19,6 +19,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; mustChangePassword?: boolean }>;
   logout: () => void;
+  refreshAuth: () => void;
   loading: boolean;
 }
 
@@ -107,6 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     login,
     logout,
+    refreshAuth: checkAuth,
     loading
   };
 

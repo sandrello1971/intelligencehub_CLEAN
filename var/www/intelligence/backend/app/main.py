@@ -236,7 +236,7 @@ async def update_user_temp(user_id: str, request: dict):
         db.close()
 from app.routes import tasks_global
 from app.routes import tasks
-from app.routes.auth_google_simple import router as google_auth_router
+from app.routes.auth_google import router as google_auth_router
 app.include_router(tasks_global.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(google_auth_router)
