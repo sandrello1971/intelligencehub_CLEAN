@@ -131,7 +131,7 @@ const MainLayout: React.FC = () => {
 
       {/* Main Content */}
       <main style={{
-        flex: 1,
+        flex: 1, padding: "20px",
         background: '#f8fafc',
         minHeight: '100vh'
       }}>

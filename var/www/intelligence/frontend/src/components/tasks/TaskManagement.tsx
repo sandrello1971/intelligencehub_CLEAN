@@ -51,6 +51,7 @@ const TaskManagement: React.FC = () => {
       
       const response = await fetch(`/api/v1/tasks-global/?${params.toString()}`);
       const data = await response.json();
+      console.log('Fetched tasks:', data); // Debug log spostato qui
       setTasks(data);
     } catch (error) {
       console.error('Error fetching task models:', error);
@@ -70,13 +71,26 @@ const TaskManagement: React.FC = () => {
       
       const method = selectedTask ? 'PUT' : 'POST';
 
+      // Assicurati che sla_giorni sia un numero valido
+      const submitData = {
+        ...formData,
+        sla_giorni: Number(formData.sla_giorni) || 3,
+        warning_giorni: Number(formData.warning_giorni) || 1,
+        escalation_giorni: Number(formData.escalation_giorni) || 1
+      };
+
+      console.log('Submitting data:', submitData); // Debug log
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
-      if (!response.ok) throw new Error('Errore nel salvataggio');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Errore nel salvataggio: ${errorText}`);
+      }
 
       alert(selectedTask ? 'Modello aggiornato!' : 'Modello creato!');
       setShowCreateModal(false);
@@ -84,6 +98,7 @@ const TaskManagement: React.FC = () => {
       resetForm();
       fetchTasks();
     } catch (error) {
+      console.error('Submit error:', error);
       alert('Errore: ' + error.message);
     } finally {
       setLoading(false);
@@ -119,6 +134,7 @@ const TaskManagement: React.FC = () => {
   };
 
   const openEditModal = (task: TaskModel) => {
+    console.log('Opening edit modal for task:', task); // Debug log
     setSelectedTask(task);
     setFormData({
       tsk_code: task.tsk_code,
@@ -245,75 +261,84 @@ const TaskManagement: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {tasks.map((task) => (
-                <div key={task.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div className="flex items-center space-x-2">
-                          <Code className="w-5 h-5 text-gray-500" />
-                          <h3 className="text-lg font-medium text-gray-900">{task.tsk_code}</h3>
-                        </div>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(task.tsk_type)}`}>
-                          {task.tsk_type}
-                        </span>
-                        {task.tsk_category && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            {task.tsk_category}
+              {tasks.map((task) => {
+                // Debug log spostato fuori dal JSX
+                console.log("Task SLA debug:", task.sla_giorni, task);
+                
+                return (
+                  <div key={task.id} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <div className="flex items-center space-x-2">
+                            <Code className="w-5 h-5 text-gray-500" />
+                            <h3 className="text-lg font-medium text-gray-900">{task.tsk_code}</h3>
+                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(task.tsk_type)}`}>
+                            {task.tsk_type}
                           </span>
+                          {task.tsk_category && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {task.tsk_category}
+                            </span>
+                          )}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(task.priorita)}`}>
+                            {task.priorita}
+                          </span>
+                        </div>
+                        
+                        {task.tsk_description && (
+                          <p className="text-gray-600 mb-3">{task.tsk_description}</p>
                         )}
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(task.priorita)}`}>
-                          {task.priorita}
-                        </span>
-                      </div>
-                      
-                      {task.tsk_description && (
-                        <p className="text-gray-600 mb-3">{task.tsk_description}</p>
-                      )}
-                      
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-blue-500" />
+                        
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="w-4 h-4 text-blue-500" />
+                            <div>
+                              <span className="font-medium text-gray-700">SLA Totale:</span>
+                              <p className="text-gray-600">
+                                {task.sla_giorni !== undefined && task.sla_giorni !== null 
+                                  ? `${task.sla_giorni} giorni` 
+                                  : 'Non definito'
+                                }
+                              </p>
+                            </div>
+                          </div>
                           <div>
-                            {console.log("Task SLA debug:", task.sla_giorni, task)}
-                            <span className="font-medium text-gray-700">SLA Totale:</span>
-                            <p className="text-gray-600">{task.sla_giorni || 'Non definito'} giorni</p>
+                            <span className="font-medium text-gray-700">Warning:</span>
+                            <p className="text-gray-600">{task.warning_giorni} giorni prima</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Escalation:</span>
+                            <p className="text-gray-600">{task.escalation_giorni} giorni dopo</p>
                           </div>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Warning:</span>
-                          <p className="text-gray-600">{task.warning_giorni} giorni prima</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Escalation:</span>
-                          <p className="text-gray-600">{task.escalation_giorni} giorni dopo</p>
-                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => openEditModal(task)}
+                          className="text-blue-600 hover:text-blue-800 font-medium px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center space-x-1"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>Modifica</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Sei sicuro di voler eliminare il modello "${task.tsk_code}"?`)) {
+                              deleteTask(task.id);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800 font-medium px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors flex items-center space-x-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Elimina</span>
+                        </button>
                       </div>
                     </div>
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => openEditModal(task)}
-                        className="text-blue-600 hover:text-blue-800 font-medium px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center space-x-1"
-                      >
-                        <Edit className="w-4 h-4" />
-                        <span>Modifica</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Sei sicuro di voler eliminare il modello "${task.tsk_code}"?`)) {
-                            deleteTask(task.id);
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-800 font-medium px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors flex items-center space-x-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Elimina</span>
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {tasks.length === 0 && !loading && (
                 <div className="p-6 text-center text-gray-500">
@@ -435,16 +460,21 @@ const TaskManagement: React.FC = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SLA Totale (giorni)
+                      SLA Totale (giorni) *
                     </label>
                     <input
                       type="number"
                       value={formData.sla_giorni}
-                      onChange={(e) => setFormData({...formData, sla_giorni: parseInt(e.target.value)})}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 3;
+                        setFormData({...formData, sla_giorni: value});
+                      }}
                       min="1"
                       max="365"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
                     />
+                    <p className="text-xs text-gray-500 mt-1">Giorni totali per completare il task</p>
                   </div>
 
                   <div>
@@ -454,11 +484,15 @@ const TaskManagement: React.FC = () => {
                     <input
                       type="number"
                       value={formData.warning_giorni}
-                      onChange={(e) => setFormData({...formData, warning_giorni: parseInt(e.target.value)})}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        setFormData({...formData, warning_giorni: value});
+                      }}
                       min="0"
                       max="30"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Avviso prima della scadenza</p>
                   </div>
 
                   <div>
@@ -468,11 +502,15 @@ const TaskManagement: React.FC = () => {
                     <input
                       type="number"
                       value={formData.escalation_giorni}
-                      onChange={(e) => setFormData({...formData, escalation_giorni: parseInt(e.target.value)})}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        setFormData({...formData, escalation_giorni: value});
+                      }}
                       min="0"
                       max="30"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Escalation dopo scadenza</p>
                   </div>
                 </div>
               </div>
@@ -492,7 +530,7 @@ const TaskManagement: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center space-x-2"
+                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center space-x-2 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{loading ? 'Salvando...' : (selectedTask ? 'Aggiorna' : 'Crea')}</span>

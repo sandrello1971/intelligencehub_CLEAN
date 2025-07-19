@@ -88,7 +88,11 @@ async def create_task_global(
             tsk_code=task_data.tsk_code,
             tsk_description=task_data.tsk_description,
             tsk_type=task_data.tsk_type,
-            tsk_category=task_data.tsk_category
+            tsk_category=task_data.tsk_category,
+            sla_giorni=task_data.sla_giorni,
+            warning_giorni=task_data.warning_giorni,
+            escalation_giorni=task_data.escalation_giorni,
+            priorita=task_data.priorita
         )
         
         db.add(db_task)
