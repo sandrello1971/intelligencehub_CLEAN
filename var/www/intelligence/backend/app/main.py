@@ -240,3 +240,10 @@ from app.routes.auth_google import router as google_auth_router
 app.include_router(tasks_global.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(google_auth_router)
+
+# Workflow Configuration Routes
+from app.routes.admin import workflow_config, workflow_management
+
+app.include_router(workflow_config.router)
+app.include_router(workflow_management.router)
+

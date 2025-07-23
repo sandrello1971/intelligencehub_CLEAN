@@ -14,7 +14,7 @@ class TipoCommessaBase(BaseModel):
     is_active: bool = Field(True, description="Stato attivo/inattivo")
     
     # Configurazione UI
-    colore_ui: Optional[str] = Field(None, regex=r'^#[0-9A-Fa-f]{6}$', description="Colore hex per UI")
+    colore_ui: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$', description="Colore hex per UI")
     icona: Optional[str] = Field(None, max_length=50, description="Nome icona Material-UI")
     priorita_ordinamento: int = Field(0, description="Priorità per ordinamento")
 
@@ -52,7 +52,7 @@ class TipoCommessaUpdate(BaseModel):
     descrizione: Optional[str] = None
     sla_default_hours: Optional[int] = Field(None, ge=1, le=8760)
     is_active: Optional[bool] = None
-    colore_ui: Optional[str] = Field(None, regex=r'^#[0-9A-Fa-f]{6}$')
+    colore_ui: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
     icona: Optional[str] = Field(None, max_length=50)
     priorita_ordinamento: Optional[int] = None
     template_milestones: Optional[Dict[str, Any]] = None
