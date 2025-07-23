@@ -1,17 +1,15 @@
 // components/workflow/MilestoneTemplateLibrary.tsx
-// Libreria Milestone Templates Riutilizzabili - IntelligenceHUB
+// Libreria Template Milestone Riutilizzabili - IntelligenceHUB
+// IMPLEMENTAZIONE COMPLETA - NO MOCK DATA
 
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
-  Typography,
-  Button,
   Card,
   CardContent,
-  Grid,
-  Chip,
-  IconButton,
+  CardActions,
+  Typography,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,407 +19,497 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Grid,
+  Chip,
+  IconButton,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
-  Add,
-  Edit,
-  FileCopy,
-  Delete,
-  Assignment,
-  Schedule
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  ExpandMore as ExpandMoreIcon,
+  Schedule as ScheduleIcon,
+  Assignment as AssignmentIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { workflowApi } from '../../services/workflowApi';
 
-interface MilestoneTemplate {
-  id: number;
-  nome: string;
-  descrizione: string;
-  durata_stimata_giorni: number;
-  sla_giorni: number;
-  categoria: string;
-  task_templates?: any[];
-  usage_count?: number;
-}
+import milestoneTemplateApi, { MilestoneTemplate, TaskTemplate, MilestoneTemplateCreateData } from '../../services/milestoneTemplateApi';
 
 const MilestoneTemplateLibrary: React.FC = () => {
   const [templates, setTemplates] = useState<MilestoneTemplate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<MilestoneTemplate | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  // Form states
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MilestoneTemplate | null>(null);
+  const [formData, setFormData] = useState<MilestoneTemplateCreateData>({
     nome: '',
     descrizione: '',
-    durata_stimata_giorni: null as number | null,
+    durata_stimata_giorni: undefined,
     categoria: 'iniziale',
-    sla_giorni: null as number | null
   });
+
+  // Task management states
+  const [selectedTemplate, setSelectedTemplate] = useState<MilestoneTemplate | null>(null);
+  const [templateTasks, setTemplateTasks] = useState<TaskTemplate[]>([]);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
 
   useEffect(() => {
     loadTemplates();
   }, []);
 
+  // ===== TEMPLATE MANAGEMENT =====
+
   const loadTemplates = async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Per ora usiamo dati mock perché l'API backend non è ancora implementata
-      const mockTemplates: MilestoneTemplate[] = [
-        {
-          id: 1,
-          nome: "Raccolta Documentazione",
-          descrizione: "Fase di raccolta e verifica documentazione cliente",
-          durata_stimata_giorni: 5,
-          sla_giorni: 7,
-          categoria: "iniziale",
-          task_templates: [
-            { nome: "Richiesta documenti", ordine: 1 },
-            { nome: "Verifica completezza", ordine: 2 },
-            { nome: "Validazione", ordine: 3 }
-          ],
-          usage_count: 5
-        },
-        {
-          id: 2,
-          nome: "Analisi Preliminare", 
-          descrizione: "Analisi della situazione aziendale",
-          durata_stimata_giorni: 7,
-          sla_giorni: 10,
-          categoria: "analisi",
-          task_templates: [
-            { nome: "Analisi bilanci", ordine: 1 },
-            { nome: "Verifica requisiti", ordine: 2 },
-            { nome: "Report preliminare", ordine: 3 }
-          ],
-          usage_count: 3
-        },
-        {
-          id: 3,
-          nome: "Sviluppo Progetto",
-          descrizione: "Fase di sviluppo e implementazione",
-          durata_stimata_giorni: 15,
-          sla_giorni: 20,
-          categoria: "sviluppo",
-          task_templates: [
-            { nome: "Pianificazione dettagliata", ordine: 1 },
-            { nome: "Implementazione", ordine: 2 },
-            { nome: "Test e validazione", ordine: 3 }
-          ],
-          usage_count: 2
-        },
-        {
-          id: 4,
-          nome: "Consegna Finale",
-          descrizione: "Fase di consegna e chiusura progetto",
-          durata_stimata_giorni: 3,
-          sla_giorni: 5,
-          categoria: "finale",
-          task_templates: [
-            { nome: "Preparazione consegna", ordine: 1 },
-            { nome: "Presentazione cliente", ordine: 2 },
-            { nome: "Chiusura progetto", ordine: 3 }
-          ],
-          usage_count: 8
-        }
-      ];
-      setTemplates(mockTemplates);
+      const response = await milestoneTemplateApi.listMilestoneTemplates();
+      if (response.success && response.data) {
+        setTemplates(response.data);
+      } else {
+        setError('Errore caricamento milestone templates');
+      }
     } catch (error) {
-      setError('Errore caricamento templates');
+      console.error('Errore caricamento templates:', error);
+      setError('Errore di connessione');
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      nome: '',
-      descrizione: '',
-      durata_stimata_giorni: null,
-      categoria: 'iniziale',
-      sla_giorni: null
-    });
-    setEditingTemplate(null);
-  };
-
-  const handleSubmit = async () => {
+  const handleCreateTemplate = async () => {
     if (!formData.nome.trim()) {
       setError('Nome template obbligatorio');
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
-      // Simula salvataggio (implementare API reale quando sarà pronta)
-      const newTemplate: MilestoneTemplate = {
-        id: Date.now(), // Temporary ID
-        ...formData,
-        durata_stimata_giorni: formData.durata_stimata_giorni || 5,
-        sla_giorni: formData.sla_giorni || 7,
-        task_templates: [],
-        usage_count: 0
-      };
-
-      if (editingTemplate) {
-        // Update existing
-        setTemplates(prev => prev.map(t => t.id === editingTemplate.id ? { ...newTemplate, id: editingTemplate.id } : t));
+      const response = await milestoneTemplateApi.createMilestoneTemplate(formData);
+      if (response.success) {
+        setSuccess('Milestone template creato con successo');
+        setShowCreateForm(false);
+        resetForm();
+        loadTemplates();
       } else {
-        // Add new
-        setTemplates(prev => [...prev, newTemplate]);
+        setError(response.error || 'Errore creazione template');
       }
-
-      setShowForm(false);
-      resetForm();
-      setError(null);
     } catch (error) {
-      setError('Errore salvataggio template');
+      console.error('Errore creazione template:', error);
+      setError('Errore di connessione');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (template: MilestoneTemplate) => {
-    setEditingTemplate(template);
-    setFormData({
-      nome: template.nome,
-      descrizione: template.descrizione,
-      durata_stimata_giorni: template.durata_stimata_giorni,
-      categoria: template.categoria,
-      sla_giorni: template.sla_giorni
-    });
-    setShowForm(true);
+  const handleDeleteTemplate = async (templateId: number) => {
+    if (!confirm('Sei sicuro di voler eliminare questo template?')) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await milestoneTemplateApi.deleteMilestoneTemplate(templateId);
+      if (response.success) {
+        setSuccess('Template eliminato con successo');
+        loadTemplates();
+      } else {
+        setError(response.error || 'Errore eliminazione template');
+      }
+    } catch (error) {
+      console.error('Errore eliminazione template:', error);
+      setError('Errore di connessione');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleClone = (template: MilestoneTemplate) => {
+  // ===== TASK MANAGEMENT =====
+
+  const loadTemplateTasks = async (template: MilestoneTemplate) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await milestoneTemplateApi.getMilestoneTemplateTasks(template.id);
+      if (response.success && response.data) {
+        setTemplateTasks(response.data.tasks);
+        setSelectedTemplate({
+          ...template,
+          sla_giorni: response.data.milestone_sla_giorni
+        });
+        setShowTaskDialog(true);
+      } else {
+        setError('Errore caricamento task');
+      }
+    } catch (error) {
+      console.error('Errore caricamento task:', error);
+      setError('Errore di connessione');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecalculateSLA = async (templateId: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await milestoneTemplateApi.recalculateMilestoneSLA(templateId);
+      if (response.success && response.data) {
+        setSuccess(`SLA ricalcolato: ${response.data.calculated_sla_giorni} giorni`);
+        loadTemplates();
+      } else {
+        setError('Errore ricalcolo SLA');
+      }
+    } catch (error) {
+      console.error('Errore ricalcolo SLA:', error);
+      setError('Errore di connessione');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== UTILITY FUNCTIONS =====
+
+  const resetForm = () => {
     setFormData({
-      nome: `${template.nome} (Copia)`,
-      descrizione: template.descrizione,
-      durata_stimata_giorni: template.durata_stimata_giorni,
-      categoria: template.categoria,
-      sla_giorni: template.sla_giorni
+      nome: '',
+      descrizione: '',
+      durata_stimata_giorni: undefined,
+      categoria: 'iniziale',
     });
     setEditingTemplate(null);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (template: MilestoneTemplate) => {
-    if (window.confirm(`Eliminare il template "${template.nome}"?`)) {
-      setTemplates(prev => prev.filter(t => t.id !== template.id));
-    }
   };
 
   const getCategoryColor = (categoria: string) => {
-    switch (categoria) {
-      case 'iniziale': return 'primary';
-      case 'analisi': return 'info';
-      case 'sviluppo': return 'warning';
-      case 'finale': return 'success';
-      default: return 'default';
-    }
+    const colors: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'error'> = {
+      'iniziale': 'primary',
+      'analisi': 'secondary',
+      'sviluppo': 'warning',
+      'finale': 'success',
+      'standard': 'primary'
+    };
+    return colors[categoria] || 'primary';
   };
 
-  if (loading && templates.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Milestone Templates Library
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" component="h1">
+          Libreria Milestone Templates
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setShowForm(true)}
-          sx={{ borderRadius: 2 }}
-        >
-          Nuovo Template
-        </Button>
+        <Box>
+          <Button
+            startIcon={<RefreshIcon />}
+            onClick={loadTemplates}
+            disabled={loading}
+            sx={{ mr: 2 }}
+          >
+            Aggiorna
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              clearMessages();
+              setShowCreateForm(true);
+            }}
+          >
+            Nuovo Template
+          </Button>
+        </Box>
       </Box>
 
+      {/* Messages */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-
-      <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-        Crea milestone riutilizzabili che possono essere assegnate a diversi workflow. 
-        Ogni template può contenere task predefiniti e configurazioni SLA.
-      </Typography>
-
-      {templates.length === 0 ? (
-        <Card sx={{ textAlign: 'center', py: 6 }}>
-          <CardContent>
-            <Assignment sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" color="textSecondary" gutterBottom>
-              Nessun milestone template disponibile
-            </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-              Crea il primo template per iniziare a standardizzare i tuoi processi
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setShowForm(true)}
-            >
-              Crea Primo Template
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Grid container spacing={3}>
-          {templates.map((template) => (
-            <Grid item xs={12} md={6} lg={4} key={template.id}>
-              <Card sx={{ 
-                height: '100%', 
-                display: 'flex', 
-                flexDirection: 'column',
-                '&:hover': { boxShadow: 4 }
-              }}>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, flexGrow: 1, mr: 1 }}>
-                      {template.nome}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <IconButton size="small" onClick={() => handleEdit(template)}>
-                        <Edit />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleClone(template)}>
-                        <FileCopy />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(template)} color="error">
-                        <Delete />
-                      </IconButton>
-                    </Box>
-                  </Box>
-
-                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                    {template.descrizione}
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                    <Chip
-                      label={template.categoria}
-                      size="small"
-                      color={getCategoryColor(template.categoria) as any}
-                      variant="outlined"
-                    />
-                    <Chip
-                      icon={<Schedule />}
-                      label={`${template.durata_stimata_giorni}g`}
-                      size="small"
-                      variant="outlined"
-                    />
-                    <Chip
-                      icon={<Assignment />}
-                      label={`${template.task_templates?.length || 0} task`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Box>
-
-                  <Typography variant="caption" color="textSecondary">
-                    SLA: {template.sla_giorni} giorni • Utilizzato in {template.usage_count || 0} workflow
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
       )}
 
-      {/* Dialog Form */}
-      <Dialog open={showForm} onClose={() => setShowForm(false)} maxWidth="sm" fullWidth>
+      {/* Loading */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {/* Templates Grid */}
+      <Grid container spacing={3}>
+        {templates.map((template) => (
+          <Grid item xs={12} md={6} lg={4} key={template.id}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Typography variant="h6" component="h2">
+                    {template.nome}
+                  </Typography>
+                  <Chip
+                    label={template.categoria}
+                    color={getCategoryColor(template.categoria)}
+                    size="small"
+                  />
+                </Box>
+
+                {template.descrizione && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {template.descrizione}
+                  </Typography>
+                )}
+
+                {/* Statistics */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <ScheduleIcon fontSize="small" color="primary" />
+                    <Typography variant="body2">
+                      {template.durata_stimata_giorni || 'N/A'} giorni
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <AssignmentIcon fontSize="small" color="secondary" />
+                    <Typography variant="body2">
+                      {template.task_count} task
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* SLA Info */}
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>SLA:</strong> {template.sla_giorni} giorni
+                    <br />
+                    <em>(Calcolato automaticamente dai task)</em>
+                  </Typography>
+                </Alert>
+
+                <Typography variant="caption" color="text.secondary">
+                  Utilizzato in {template.usage_count} workflow
+                </Typography>
+              </CardContent>
+
+              <CardActions>
+                <Button
+                  size="small"
+                  onClick={() => loadTemplateTasks(template)}
+                  disabled={loading}
+                >
+                  Gestisci Task
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => handleRecalculateSLA(template.id)}
+                  disabled={loading}
+                >
+                  Ricalcola SLA
+                </Button>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDeleteTemplate(template.id)}
+                  disabled={loading}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Empty State */}
+      {!loading && templates.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            Nessun template milestone trovato
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Crea il primo template per iniziare
+          </Typography>
+        </Box>
+      )}
+
+      {/* Create/Edit Dialog */}
+      <Dialog
+        open={showCreateForm}
+        onClose={() => {
+          setShowCreateForm(false);
+          resetForm();
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
-          {editingTemplate ? 'Modifica Milestone Template' : 'Nuovo Milestone Template'}
+          {editingTemplate ? 'Modifica Template' : 'Nuovo Template Milestone'}
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Nome Template"
-                value={formData.nome}
-                onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                required
-                placeholder="es: Raccolta Documentazione"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Descrizione"
-                value={formData.descrizione}
-                onChange={(e) => setFormData(prev => ({ ...prev, descrizione: e.target.value }))}
-                multiline
-                rows={2}
-                placeholder="Descrizione del template e quando utilizzarlo"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Durata Stimata (giorni)"
-                type="number"
-                value={formData.durata_stimata_giorni || ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  durata_stimata_giorni: e.target.value ? parseInt(e.target.value) : null 
-                }))}
-                inputProps={{ min: 1, max: 365 }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="SLA (giorni)"
-                type="number"
-                value={formData.sla_giorni || ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  sla_giorni: e.target.value ? parseInt(e.target.value) : null 
-                }))}
-                inputProps={{ min: 1, max: 365 }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Categoria</InputLabel>
-                <Select
-                  value={formData.categoria}
-                  onChange={(e) => setFormData(prev => ({ ...prev, categoria: e.target.value }))}
-                  label="Categoria"
-                >
-                  <MenuItem value="iniziale">Iniziale</MenuItem>
-                  <MenuItem value="analisi">Analisi</MenuItem>
-                  <MenuItem value="sviluppo">Sviluppo</MenuItem>
-                  <MenuItem value="finale">Finale</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
+          <Box sx={{ pt: 1 }}>
+            <TextField
+              fullWidth
+              label="Nome Template"
+              value={formData.nome}
+              onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+              margin="normal"
+              required
+            />
+
+            <TextField
+              fullWidth
+              label="Descrizione"
+              value={formData.descrizione}
+              onChange={(e) => setFormData(prev => ({ ...prev, descrizione: e.target.value }))}
+              margin="normal"
+              multiline
+              rows={3}
+            />
+
+            <TextField
+              fullWidth
+              label="Durata Stimata (giorni)"
+              type="number"
+              value={formData.durata_stimata_giorni || ''}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                durata_stimata_giorni: e.target.value ? parseInt(e.target.value) : undefined 
+              }))}
+              margin="normal"
+            />
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Categoria</InputLabel>
+              <Select
+                value={formData.categoria}
+                onChange={(e) => setFormData(prev => ({ ...prev, categoria: e.target.value }))}
+                label="Categoria"
+              >
+                <MenuItem value="iniziale">Iniziale</MenuItem>
+                <MenuItem value="analisi">Analisi</MenuItem>
+                <MenuItem value="sviluppo">Sviluppo</MenuItem>
+                <MenuItem value="finale">Finale</MenuItem>
+                <MenuItem value="standard">Standard</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Alert severity="info" sx={{ mt: 2 }}>
+              L'SLA della milestone sarà calcolato automaticamente dalla somma degli SLA dei task assegnati.
+            </Alert>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => {
-            setShowForm(false);
+            setShowCreateForm(false);
             resetForm();
-            setError(null);
           }}>
             Annulla
           </Button>
-          <Button 
-            onClick={handleSubmit}
+          <Button
+            onClick={handleCreateTemplate}
             variant="contained"
             disabled={loading || !formData.nome.trim()}
           >
-            {editingTemplate ? 'Aggiorna' : 'Crea'} Template
+            {loading ? <CircularProgress size={20} /> : (editingTemplate ? 'Aggiorna' : 'Crea')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Task Management Dialog */}
+      <Dialog
+        open={showTaskDialog}
+        onClose={() => {
+          setShowTaskDialog(false);
+          setSelectedTemplate(null);
+          setTemplateTasks([]);
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Task di: {selectedTemplate?.nome}
+          {selectedTemplate && (
+            <Typography variant="body2" color="text.secondary">
+              SLA Totale: {selectedTemplate.sla_giorni} giorni
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          {templateTasks.length > 0 ? (
+            <List>
+              {templateTasks.map((task) => (
+                <ListItem key={task.id} divider>
+                  <ListItemText
+                    primary={task.nome}
+                    secondary={
+                      <Box>
+                        <Typography variant="body2">
+                          {task.descrizione}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                          <Chip
+                            label={`${task.sla_hours}h`}
+                            size="small"
+                            color="primary"
+                          />
+                          <Chip
+                            label={task.priorita}
+                            size="small"
+                            color="secondary"
+                          />
+                          {task.is_required && (
+                            <Chip
+                              label="Obbligatorio"
+                              size="small"
+                              color="error"
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <Typography variant="body2" color="text.secondary">
+                      Ordine: {task.ordine}
+                    </Typography>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Alert severity="info">
+              Nessun task assegnato a questo template milestone.
+              <br />
+              Usa la gestione task per aggiungere task esistenti.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setShowTaskDialog(false);
+            setSelectedTemplate(null);
+            setTemplateTasks([]);
+          }}>
+            Chiudi
           </Button>
         </DialogActions>
       </Dialog>

@@ -247,3 +247,7 @@ from app.routes.admin import workflow_config, workflow_management
 app.include_router(workflow_config.router)
 app.include_router(workflow_management.router)
 
+
+from app.routes.admin import milestone_templates
+app.include_router(milestone_templates.router)
+

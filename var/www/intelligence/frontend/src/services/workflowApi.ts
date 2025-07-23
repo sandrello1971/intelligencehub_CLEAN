@@ -207,7 +207,7 @@ class WorkflowApiClient {
     descrizione: string;
     durata_stimata_giorni: number | null;
     categoria: string;
-    sla_giorni?: number;
+    
   }): Promise<ApiResponse<any>> {
     return this.request("/admin/workflow-config/milestone-templates", {
       method: "POST", 
