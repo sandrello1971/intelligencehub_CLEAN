@@ -13,11 +13,12 @@ import {
   CircularProgress,
   Fab
 } from '@mui/material';
-import { Add, Dashboard, Settings, Timeline } from '@mui/icons-material';
+import { Add, Dashboard, Settings, Timeline, Assignment } from '@mui/icons-material';
 import WorkflowDashboard from './WorkflowDashboard';
 import WorkflowTemplateList from './WorkflowTemplateList';
 import WorkflowTemplateForm from './WorkflowTemplateForm';
 import ConfigurationWizard from './ConfigurationWizard';
+import MilestoneTemplateLibrary from './MilestoneTemplateLibrary';
 import { workflowApi, WorkflowTemplate } from '../../services/workflowApi';
 
 interface TabPanelProps {
@@ -153,6 +154,11 @@ const WorkflowManagement: React.FC = () => {
               label="Workflow Templates" 
               sx={{ minHeight: 60, fontSize: '1rem' }}
             />
+            <Tab 
+              icon={<Assignment />} 
+              label="Milestone Templates" 
+              sx={{ minHeight: 60, fontSize: '1rem' }} 
+            />
           </Tabs>
         </Box>
 
@@ -176,6 +182,10 @@ const WorkflowManagement: React.FC = () => {
             onCloseCreateForm={() => setShowCreateForm(false)}
             onWorkflowCreated={handleWorkflowCreated}
           />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={2}>
+          <MilestoneTemplateLibrary />
         </TabPanel>
       </Paper>
 
@@ -207,3 +217,4 @@ const WorkflowManagement: React.FC = () => {
 };
 
 export default WorkflowManagement;
+

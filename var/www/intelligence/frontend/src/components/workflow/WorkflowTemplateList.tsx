@@ -283,7 +283,7 @@ const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
                     <Button
                       size="small"
                       startIcon={<Visibility />}
-                      onClick={() => {/* View workflow details */}}
+                      onClick={() => onViewDetails?.(workflow)}
                     >
                       Dettagli
                     </Button>

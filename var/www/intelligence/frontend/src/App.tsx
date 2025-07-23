@@ -21,6 +21,7 @@ import TipologieServizi from "./components/tipologie-servizi/TipologieServizi";
 import Partner from "./components/partner/Partner";
 import KitCommerciali from "./components/kit-commerciali/KitCommerciali";
 import TasksGlobalManagement from "./components/workflow/TasksGlobalManagement";
+import WorkflowManagement from "./components/workflow/WorkflowManagement";
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
             <Route path="tipologie-servizi" element={<TipologieServizi />} />
             <Route path="partner" element={<Partner />} />
             <Route path="tasks-global" element={<TasksGlobalManagement />} />
+            <Route path="workflow-management" element={<WorkflowManagement />} />
             <Route path="tasks" element={<TaskManagement />} />
             <Route path="chat" element={<IntelliChat />} />
             <Route path="documents" element={<DocumentsRAG />} />
@@ -61,3 +63,6 @@ function App() {
 }
 
 export default App;
+
+// Importa il componente Workflow Management
+import WorkflowManagement from "./components/workflow/WorkflowManagement";

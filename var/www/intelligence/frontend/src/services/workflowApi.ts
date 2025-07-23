@@ -199,6 +199,21 @@ class WorkflowApiClient {
   async getWorkflowStatistics(): Promise<ApiResponse<any>> {
     return this.request('/admin/workflow-management/statistics/overview');
   }
+
+
+  // ===== MILESTONE TEMPLATES STANDALONE =====
+  async createMilestoneTemplate(data: {
+    nome: string;
+    descrizione: string;
+    durata_stimata_giorni: number | null;
+    categoria: string;
+    sla_giorni?: number;
+  }): Promise<ApiResponse<any>> {
+    return this.request("/admin/workflow-config/milestone-templates", {
+      method: "POST", 
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const workflowApi = new WorkflowApiClient();
