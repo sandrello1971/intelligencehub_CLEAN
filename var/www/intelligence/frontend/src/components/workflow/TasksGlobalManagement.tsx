@@ -17,7 +17,7 @@ const TasksGlobalManagement = () => {
     tsk_category: ''
   });
 
-  const API_BASE = 'https://intelligencehub.enduser-digital.com/api/v1';
+  const API_BASE = 'http://localhost:8000/api/v1';
 
   const apiCall = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem("access_token");

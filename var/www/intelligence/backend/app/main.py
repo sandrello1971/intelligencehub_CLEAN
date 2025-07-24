@@ -253,3 +253,5 @@ from app.routes.admin import milestone_templates
 app.include_router(milestone_templates.router)
 app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
 
+from app.routes import templates
+app.include_router(templates.router)

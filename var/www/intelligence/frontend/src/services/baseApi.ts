@@ -8,7 +8,7 @@ export interface ApiResponse<T> {
 export class BaseApiClient {
   protected baseUrl: string;
 
-  constructor(baseUrl: string = '/api/v1') {
+  constructor(baseUrl: string = "http://localhost:8000/api/v1") {
     this.baseUrl = baseUrl;
   }
 

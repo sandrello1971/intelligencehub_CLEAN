@@ -42,7 +42,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 
-import milestoneTemplateApi, { MilestoneTemplate, TaskTemplate, MilestoneTemplateCreateData } from '../../services/milestoneTemplateApi';
+import { apiClient } from '../../services/api';
 
 const MilestoneTemplateLibrary: React.FC = () => {
   const [templates, setTemplates] = useState<MilestoneTemplate[]>([]);
@@ -66,16 +66,18 @@ const MilestoneTemplateLibrary: React.FC = () => {
   const [showTaskDialog, setShowTaskDialog] = useState(false);
 
   useEffect(() => {
+    console.log("=== MilestoneTemplateLibrary MOUNTED ===");
     loadTemplates();
   }, []);
 
   // ===== TEMPLATE MANAGEMENT =====
 
   const loadTemplates = async () => {
+    console.log("=== CALLING loadTemplates ===");
     setLoading(true);
     setError(null);
     try {
-      const response = await milestoneTemplateApi.listMilestoneTemplates();
+      const response = await apiClient.get('/admin/milestone-templates/');
       if (response.success && response.data) {
         setTemplates(response.data);
       } else {
@@ -98,7 +100,7 @@ const MilestoneTemplateLibrary: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await milestoneTemplateApi.createMilestoneTemplate(formData);
+      const response = await apiClient.post('/admin/milestone-templates/', formData);
       if (response.success) {
         setSuccess('Milestone template creato con successo');
         setShowCreateForm(false);
@@ -121,7 +123,7 @@ const MilestoneTemplateLibrary: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await milestoneTemplateApi.deleteMilestoneTemplate(templateId);
+      const response = await apiClient.delete('/admin/milestone-templates/' + templateId);
       if (response.success) {
         setSuccess('Template eliminato con successo');
         loadTemplates();
