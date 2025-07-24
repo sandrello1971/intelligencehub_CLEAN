@@ -57,3 +57,4 @@ from .kit_commerciali import KitCommerciale, KitArticolo
 from .er_models import TaskGlobal, WkfRow, TicketRow
 from .users import User
 from .partner import Partner
+from .wiki import WikiCategory, WikiPage, WikiSection

@@ -14,6 +14,7 @@ from app.routes import tipologie_servizi
 from app.routes import partner
 from app.routes import articles
 from app.services.web_scraping import api_routes_working
+from app.routes import wiki
 
 # Database
 from app.database import create_tables
@@ -250,4 +251,5 @@ app.include_router(workflow_management.router)
 
 from app.routes.admin import milestone_templates
 app.include_router(milestone_templates.router)
+app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
 

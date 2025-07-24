@@ -98,7 +98,7 @@ class WorkflowApiClient {
     };
 
     // Aggiungi token se presente
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     if (token) {
       (defaultHeaders as any)['Authorization'] = `Bearer ${token}`;
     }

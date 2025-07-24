@@ -103,3 +103,18 @@ class MilestoneTemplateApiClient extends BaseApiClient {
 
 export const milestoneTemplateApi = new MilestoneTemplateApiClient();
 export default milestoneTemplateApi;
+
+  // ===== UPDATE METHOD =====
+  async updateMilestoneTemplate(templateId: number, data: MilestoneTemplateCreateData): Promise<ApiResponse<MilestoneTemplate>> {
+    return this.request(`/api/v1/admin/milestone-templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateMilestoneTemplate(templateId: number, data: MilestoneTemplateCreateData): Promise<ApiResponse<MilestoneTemplate>> {
+    return this.request(`/api/v1/admin/milestone-templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }

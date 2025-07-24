@@ -233,3 +233,155 @@ async def remove_task_from_milestone_template(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore rimozione task: {str(e)}")
+
+@router.put("/{template_id}")
+async def update_milestone_template(
+    template_id: int,
+    milestone_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Aggiorna milestone template esistente"""
+    try:
+        # Verifica che il template esista
+        check_query = "SELECT id FROM milestone_templates_library WHERE id = :template_id"
+        existing = db.execute(text(check_query), {"template_id": template_id}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Milestone template non trovato")
+        
+        # Aggiorna il template
+        update_query = """
+        UPDATE milestone_templates_library 
+        SET nome = :nome, 
+            descrizione = :descrizione, 
+            durata_stimata_giorni = :durata_giorni,
+            categoria = :categoria,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :template_id
+        RETURNING id, nome, descrizione, durata_stimata_giorni, categoria, sla_giorni, created_at
+        """
+        
+        result = db.execute(text(update_query), {
+            "template_id": template_id,
+            "nome": milestone_data["nome"],
+            "descrizione": milestone_data.get("descrizione"),
+            "durata_giorni": milestone_data.get("durata_stimata_giorni"),
+            "categoria": milestone_data.get("categoria", "standard")
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "id": result.id,
+            "nome": result.nome,
+            "descrizione": result.descrizione,
+            "durata_stimata_giorni": result.durata_stimata_giorni,
+            "categoria": result.categoria,
+            "sla_giorni": result.sla_giorni,
+            "created_at": result.created_at
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore aggiornamento milestone template: {str(e)}")
+
+@router.put("/{template_id}")
+async def update_milestone_template(
+    template_id: int,
+    milestone_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Aggiorna milestone template esistente"""
+    try:
+        check_query = "SELECT id FROM milestone_templates_library WHERE id = :template_id"
+        existing = db.execute(text(check_query), {"template_id": template_id}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Milestone template non trovato")
+        
+        update_query = """
+        UPDATE milestone_templates_library 
+        SET nome = :nome, 
+            descrizione = :descrizione, 
+            durata_stimata_giorni = :durata_giorni,
+            categoria = :categoria,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :template_id
+        RETURNING id, nome, descrizione, durata_stimata_giorni, categoria, sla_giorni, created_at
+        """
+        
+        result = db.execute(text(update_query), {
+            "template_id": template_id,
+            "nome": milestone_data["nome"],
+            "descrizione": milestone_data.get("descrizione"),
+            "durata_giorni": milestone_data.get("durata_stimata_giorni"),
+            "categoria": milestone_data.get("categoria", "standard")
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "id": result.id,
+            "nome": result.nome,
+            "descrizione": result.descrizione,
+            "durata_stimata_giorni": result.durata_stimata_giorni,
+            "categoria": result.categoria,
+            "sla_giorni": result.sla_giorni,
+            "created_at": result.created_at
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore aggiornamento milestone template: {str(e)}")
+
+@router.put("/{template_id}")
+async def update_milestone_template(
+    template_id: int,
+    milestone_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Aggiorna milestone template esistente"""
+    try:
+        check_query = "SELECT id FROM milestone_templates_library WHERE id = :template_id"
+        existing = db.execute(text(check_query), {"template_id": template_id}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Milestone template non trovato")
+        
+        update_query = """
+        UPDATE milestone_templates_library 
+        SET nome = :nome, 
+            descrizione = :descrizione, 
+            durata_stimata_giorni = :durata_giorni,
+            categoria = :categoria,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :template_id
+        RETURNING id, nome, descrizione, durata_stimata_giorni, categoria, sla_giorni, created_at
+        """
+        
+        result = db.execute(text(update_query), {
+            "template_id": template_id,
+            "nome": milestone_data["nome"],
+            "descrizione": milestone_data.get("descrizione"),
+            "durata_giorni": milestone_data.get("durata_stimata_giorni"),
+            "categoria": milestone_data.get("categoria", "standard")
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "id": result.id,
+            "nome": result.nome,
+            "descrizione": result.descrizione,
+            "durata_stimata_giorni": result.durata_stimata_giorni,
+            "categoria": result.categoria,
+            "sla_giorni": result.sla_giorni,
+            "created_at": result.created_at
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore aggiornamento milestone template: {str(e)}")
