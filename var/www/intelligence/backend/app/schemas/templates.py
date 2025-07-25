@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -7,7 +8,7 @@ class TaskTemplateBase(BaseModel):
     descrizione: Optional[str] = None
     checklist: Optional[List[str]] = []
     tempo_stimato: Optional[int] = None  # minuti
-    priorita: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
+    priority: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
     categoria: Optional[str] = None
 
 class TaskTemplateCreate(TaskTemplateBase):
@@ -18,11 +19,11 @@ class TaskTemplateUpdate(BaseModel):
     descrizione: Optional[str] = None
     checklist: Optional[List[str]] = None
     tempo_stimato: Optional[int] = None
-    priorita: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
+    priority: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
     categoria: Optional[str] = None
 
 class TaskTemplateResponse(TaskTemplateBase):
-    id: int
+    id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -33,7 +34,7 @@ class TicketTemplateBase(BaseModel):
     nome: str = Field(..., min_length=1, max_length=200)
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
-    priorita: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
+    priority: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
     sla_hours: Optional[int] = None
     task_templates: Optional[List[int]] = []  # IDs dei task template
     articolo_id: Optional[int] = None
@@ -49,7 +50,7 @@ class TicketTemplateUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=1, max_length=200)
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
-    priorita: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
+    priority: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
     sla_hours: Optional[int] = None
     task_templates: Optional[List[int]] = None
     articolo_id: Optional[int] = None
@@ -59,7 +60,7 @@ class TicketTemplateUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class TicketTemplateResponse(TicketTemplateBase):
-    id: int
+    id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -77,7 +78,7 @@ ModelloTicketResponse = TicketTemplateResponse
 
 # Classe per lista items
 class TemplateListItem(BaseModel):
-    id: int
+    id: UUID
     nome: str
     categoria: Optional[str] = None
     

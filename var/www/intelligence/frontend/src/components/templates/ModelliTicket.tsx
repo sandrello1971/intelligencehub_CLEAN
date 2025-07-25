@@ -35,8 +35,10 @@ const ModelliTicket: React.FC = () => {
     descrizione: '',
     articolo_id: '',
     workflow_template_id: '',
-    priority: 'media'
+    priority: "medium"
   });
+  const [editingModel, setEditingModel] = useState<any>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [calculatedSLA, setCalculatedSLA] = useState<number | null>(null);
 
   useEffect(() => {
@@ -95,6 +97,79 @@ const ModelliTicket: React.FC = () => {
       ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // === CRUD FUNCTIONS ===
+  const handleEdit = (model: any) => {
+    setEditingModel(model);
+    setFormData({
+      nome: model.nome,
+      descrizione: model.descrizione || "",
+      articolo_id: model.articolo_id?.toString() || "",
+      workflow_template_id: model.workflow_template_id?.toString() || "",
+      priority: model.priority || "medium"
+    });
+    setShowEditForm(true);
+  };
+
+  const handleClone = async (model: any) => {
+    const newName = prompt(`Clona modello "${model.nome}\n\nInserisci nuovo nome:`, `${model.nome} - Copia`);
+    if (!newName) return;
+    
+    try {
+      const response = await fetch(`/api/v1/templates/ticket-templates/${model.id}/clone?new_name=${encodeURIComponent(newName)}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (response.ok) {
+        alert("Modello clonato con successo!");
+        loadModelli();
+      } else {
+        const error = await response.json();
+        alert(`Errore: ${error.detail || "Impossibile clonare modello"}`);
+      }
+    } catch (error) {
+      console.error("Errore clonazione:", error);
+      alert("Errore di connessione");
+    }
+  };
+
+  const handleDelete = async (model: any) => {
+
+  // Funzione wrapper per submit
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    if (editingModel) {
+      await handleSaveEdit(e);
+    } else {
+      await handleSubmit(e);
+    }
+  };
+    if (!confirm(`Sei sicuro di voler disattivare "${model.nome}"?`)) return;
+    
+    try {
+      const response = await fetch(`/api/v1/templates/ticket-templates/${model.id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (response.ok) {
+        alert("Modello disattivato con successo!");
+        loadModelli();
+      } else {
+        const error = await response.json();
+        alert(`Errore: ${error.detail || "Impossibile disattivare modello"}`);
+      }
+    } catch (error) {
+      console.error("Errore disattivazione:", error);
+      alert("Errore di connessione");
     }
   };
 
@@ -183,7 +258,7 @@ const ModelliTicket: React.FC = () => {
           descrizione: '',
           articolo_id: '',
           workflow_template_id: '',
-          priority: 'media'
+          priority: "medium"
         });
         setCalculatedSLA(null);
         loadModelli();
@@ -201,6 +276,48 @@ const ModelliTicket: React.FC = () => {
     if (!id) return 'Generico';
     const articolo = articoli.find(a => a.id === id);
     return articolo ? `${articolo.codice} - ${articolo.nome}` : 'N/A';
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingModel) return;
+    try {
+      const payload = {
+        nome: formData.nome,
+        descrizione: formData.descrizione,
+        articolo_id: formData.articolo_id ? parseInt(formData.articolo_id) : null,
+        workflow_template_id: formData.workflow_template_id ? parseInt(formData.workflow_template_id) : null,
+        priority: formData.priority,
+        sla_hours: calculatedSLA || 24,
+        is_active: true
+      };
+      const response = await fetch(`/api/v1/templates/ticket-templates/${editingModel.id}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        alert("Modello aggiornato!");
+        setShowEditForm(false);
+        setEditingModel(null);
+        setFormData({ nome: "", descrizione: "", articolo_id: "", workflow_template_id: "", priority: "medium" });
+        setCalculatedSLA(null);
+        loadModelli();
+      }
+    } catch (error) {
+      alert("Errore aggiornamento");
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    if (editingModel) {
+      await handleSaveEdit(e);
+    } else {
+      await handleSubmit(e);
+    }
   };
 
   const getWorkflowNome = (id: number | null) => {
@@ -235,7 +352,7 @@ const ModelliTicket: React.FC = () => {
         </button>
       </div>
 
-      {showForm && (
+      {(showForm || showEditForm) && (
         <div style={{
           background: '#f9f9f9',
           padding: '20px',
@@ -243,8 +360,8 @@ const ModelliTicket: React.FC = () => {
           marginBottom: '20px',
           border: '1px solid #ddd'
         }}>
-          <h3>Nuovo Modello Ticket</h3>
-          <form onSubmit={handleSubmit}>
+          <h3>{editingModel ? "Modifica Modello Ticket" : "Nuovo Modello Ticket"}</h3>
+          <form onSubmit={handleFormSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
               <div>
                 <label>Nome Modello *</label>
@@ -265,7 +382,7 @@ const ModelliTicket: React.FC = () => {
                   style={{ width: '100%', padding: '8px', marginTop: '5px' }}
                 >
                   <option value="bassa">Bassa</option>
-                  <option value="media">Media</option>
+                  <option value="medium">Media</option>
                   <option value="alta">Alta</option>
                   <option value="urgente">Urgente</option>
                 </select>
@@ -397,6 +514,59 @@ const ModelliTicket: React.FC = () => {
                   <div><strong>Priorità:</strong> {modello.priority}</div>
                   <div><strong>SLA:</strong> {modello.sla_hours} ore</div>
                   <div><strong>Stato:</strong> {modello.is_active ? 'Attivo' : 'Disattivo'}</div>
+                  
+                  {/* Pulsanti di azione */}
+                  <div style={{ 
+                    display: "flex", 
+                    gap: "8px", 
+                    marginTop: "15px",
+                    flexWrap: "wrap"
+                  }}>
+                    <button
+                      onClick={() => handleEdit(modello)}
+                      style={{
+                        background: "#2196F3",
+                        color: "white",
+                        border: "none",
+                        padding: "6px 12px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      ✏️ Modifica
+                    </button>
+                    
+                    <button
+                      onClick={() => handleClone(modello)}
+                      style={{
+                        background: "#FF9800",
+                        color: "white",
+                        border: "none",
+                        padding: "6px 12px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      📋 Clona
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDelete(modello)}
+                      style={{
+                        background: "#f44336",
+                        color: "white",
+                        border: "none",
+                        padding: "6px 12px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      🗑️ Elimina
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -58,3 +58,4 @@ from .er_models import TaskGlobal, WkfRow, TicketRow
 from .users import User
 from .partner import Partner
 from .wiki import WikiCategory, WikiPage, WikiSection
+from .workflow_templates import WorkflowTemplate

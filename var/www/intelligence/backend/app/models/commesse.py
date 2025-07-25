@@ -87,9 +87,6 @@ class ModelloTicket(Base):
     sla_hours = Column(Integer, default=24)
     template_description = Column(Text)
     
-    # Campi legacy (mantenuti per compatibilità)
-    milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
-    task_templates = Column(JSONB, default=[])  # Array di ModelloTask IDs
     auto_assign_rules = Column(JSONB, default={})
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
