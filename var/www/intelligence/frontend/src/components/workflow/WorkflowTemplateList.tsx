@@ -42,6 +42,7 @@ interface WorkflowTemplateListProps {
   showCreateForm: boolean;
   onCloseCreateForm: () => void;
   onWorkflowCreated: () => void;
+  onViewDetails?: (workflow: WorkflowTemplate) => void;
 }
 
 const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
@@ -49,7 +50,8 @@ const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
   onReload,
   showCreateForm,
   onCloseCreateForm,
-  onWorkflowCreated
+  onWorkflowCreated,
+  onViewDetails
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowTemplate | null>(null);
@@ -287,14 +289,22 @@ const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
                     >
                       Dettagli
                     </Button>
-                    <Button
-                      size="small"
+<Button
+  size="small"
                       startIcon={<Edit />}
                       variant="outlined"
-                      onClick={() => {/* Edit workflow */}}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log("CAZZO DI MODIFICA CLICKED:", workflow);
+                        alert("MODIFICA FUNZIONA: " + workflow.nome);
+                      }}
                     >
                       Modifica
-                    </Button>
+  Modifica
+</Button>
+
+
                   </CardActions>
                 </Card>
               </Grid>
@@ -304,28 +314,42 @@ const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
       )}
 
       {/* Menu contestuale */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={() => {/* View details */}}>
-          <Visibility fontSize="small" sx={{ mr: 1 }} />
-          Visualizza Dettagli
-        </MenuItem>
-        <MenuItem onClick={() => {/* Edit workflow */}}>
-          <Edit fontSize="small" sx={{ mr: 1 }} />
-          Modifica
-        </MenuItem>
-        <MenuItem onClick={handleCloneWorkflow}>
-          <FileCopy fontSize="small" sx={{ mr: 1 }} />
-          Clona
-        </MenuItem>
-        <MenuItem onClick={() => {/* Delete workflow */}}>
-          <Delete fontSize="small" sx={{ mr: 1 }} />
-          Elimina
-        </MenuItem>
-      </Menu>
+<Menu
+  anchorEl={anchorEl}
+  open={!!anchorEl}
+  onClose={() => {setAnchorEl(null); setSelectedWorkflow(null);}}
+>
+  <MenuItem onClick={() => {
+    if (selectedWorkflow && onViewDetails) {
+      onViewDetails(selectedWorkflow);
+    }
+    setAnchorEl(null); setSelectedWorkflow(null);;
+  }}>
+    <Visibility fontSize="small" sx={{ mr: 1 }} />
+    Visualizza Dettagli
+  </MenuItem>
+  <MenuItem onClick={() => {
+    console.log('Modifica workflow:', selectedWorkflow);
+    setAnchorEl(null); setSelectedWorkflow(null);;
+  }}>
+    <Edit fontSize="small" sx={{ mr: 1 }} />
+  </MenuItem>
+  <MenuItem onClick={handleCloneWorkflow}>
+    <FileCopy fontSize="small" sx={{ mr: 1 }} />
+    Clona
+  </MenuItem>
+  <MenuItem onClick={() => {
+    if (selectedWorkflow && confirm(`Sei sicuro di voler eliminare ${selectedWorkflow.nome}?`)) {
+      console.log('Elimina workflow:', selectedWorkflow);
+    }
+    setAnchorEl(null); setSelectedWorkflow(null);;
+  }}>
+    <Delete fontSize="small" sx={{ mr: 1 }} />
+    Elimina
+  </MenuItem>
+</Menu>
+
+
     </Box>
   );
 };

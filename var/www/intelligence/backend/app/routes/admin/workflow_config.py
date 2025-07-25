@@ -408,3 +408,143 @@ async def create_milestone_task_template(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore creazione task template: {str(e)}")
+
+@router.get("/workflow-templates/{workflow_id}/milestones")
+async def get_workflow_milestones(
+    workflow_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Recupera milestone di un workflow template"""
+    try:
+        # Verifica che il workflow esista
+        workflow_check = db.execute(text("SELECT id FROM workflow_templates WHERE id = :id"), {"id": workflow_id}).fetchone()
+        if not workflow_check:
+            raise HTTPException(status_code=404, detail="Workflow non trovato")
+        
+        # Recupera le milestone associate
+        query = """
+        SELECT wm.id, wm.nome, wm.descrizione, wm.ordine, wm.durata_stimata_giorni, 
+               wm.sla_giorni, wm.tipo_milestone, wm.created_at,
+               (SELECT COUNT(*) FROM milestone_task_templates WHERE milestone_id = wm.id) as task_count
+        FROM workflow_milestones wm 
+        WHERE wm.workflow_template_id = :workflow_id
+        ORDER BY wm.ordine, wm.nome
+        """
+        
+        result = db.execute(text(query), {"workflow_id": workflow_id}).fetchall()
+        
+        milestones = []
+        for row in result:
+            milestones.append({
+                "id": row.id,
+                "nome": row.nome,
+                "descrizione": row.descrizione,
+                "ordine": row.ordine,
+                "durata_stimata_giorni": row.durata_stimata_giorni,
+                "sla_giorni": row.sla_giorni,
+                "tipo_milestone": row.tipo_milestone,
+                "task_count": row.task_count,
+                "created_at": row.created_at
+            })
+        
+        return {"workflow_id": workflow_id, "milestones": milestones}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.post("/workflow-templates/{workflow_id}/milestones/{milestone_template_id}")
+async def assign_milestone_template_to_workflow(
+    workflow_id: int,
+    milestone_template_id: int,
+    assignment_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Associa milestone template al workflow"""
+    try:
+        # Verifica che il workflow esista
+        workflow_check = db.execute(text("SELECT id FROM workflow_templates WHERE id = :id"), {"id": workflow_id}).fetchone()
+        if not workflow_check:
+            raise HTTPException(status_code=404, detail="Workflow non trovato")
+        
+        # Verifica che il milestone template esista (template = workflow_template_id IS NULL)
+        milestone_check = db.execute(text("SELECT id, nome, descrizione, sla_giorni, tipo_milestone FROM workflow_milestones WHERE id = :id AND workflow_template_id IS NULL"), 
+                                   {"id": milestone_template_id}).fetchone()
+        if not milestone_check:
+            raise HTTPException(status_code=404, detail="Milestone template non trovato")
+        
+        # Verifica che non sia già associato
+        existing_check = db.execute(text("SELECT id FROM workflow_milestones WHERE workflow_template_id = :workflow_id AND nome = :nome"), 
+                                  {"workflow_id": workflow_id, "nome": milestone_check.nome}).fetchone()
+        if existing_check:
+            raise HTTPException(status_code=400, detail="Milestone già associata al workflow")
+        
+        # Crea la milestone per il workflow basata sul template
+        query = """
+        INSERT INTO workflow_milestones 
+        (workflow_template_id, nome, descrizione, ordine, durata_stimata_giorni, sla_giorni, 
+         warning_giorni, escalation_giorni, tipo_milestone, auto_generate_tickets)
+        VALUES (:workflow_id, :nome, :descrizione, :ordine, :durata_giorni, :sla_giorni,
+                2, 1, :tipo_milestone, true)
+        RETURNING id
+        """
+        
+        result = db.execute(text(query), {
+            "workflow_id": workflow_id,
+            "nome": milestone_check.nome,
+            "descrizione": milestone_check.descrizione,
+            "ordine": assignment_data.get("ordine", 1),
+            "durata_giorni": assignment_data.get("durata_stimata_giorni"),
+            "sla_giorni": milestone_check.sla_giorni,
+            "tipo_milestone": milestone_check.tipo_milestone
+        }).fetchone()
+        
+        new_milestone_id = result.id
+        
+        # Copia anche i task template associati
+        copy_tasks_query = """
+        INSERT INTO milestone_task_templates 
+        (milestone_id, nome, descrizione, ordine, durata_stimata_ore, ruolo_responsabile, obbligatorio, tipo_task)
+        SELECT :new_milestone_id, nome, descrizione, ordine, durata_stimata_ore, ruolo_responsabile, obbligatorio, tipo_task
+        FROM milestone_task_templates 
+        WHERE milestone_id = :template_milestone_id
+        """
+        
+        db.execute(text(copy_tasks_query), {
+            "new_milestone_id": new_milestone_id,
+            "template_milestone_id": milestone_template_id
+        })
+        
+        db.commit()
+        return {"message": "Milestone template associato al workflow con successo", "new_milestone_id": new_milestone_id}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.delete("/workflow-templates/{workflow_id}/milestones/{milestone_id}")
+async def remove_milestone_from_workflow(
+    workflow_id: int,
+    milestone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Rimuove milestone dal workflow"""
+    try:
+        # Elimina prima i task associati
+        db.execute(text("DELETE FROM milestone_task_templates WHERE milestone_id = :milestone_id"), {"milestone_id": milestone_id})
+        
+        # Elimina la milestone
+        result = db.execute(text("DELETE FROM workflow_milestones WHERE id = :id AND workflow_template_id = :workflow_id"), 
+                          {"id": milestone_id, "workflow_id": workflow_id})
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Milestone non trovata nel workflow")
+        
+        db.commit()
+        return {"message": "Milestone rimossa dal workflow con successo"}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
