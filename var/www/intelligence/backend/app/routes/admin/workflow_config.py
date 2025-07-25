@@ -246,6 +246,37 @@ async def list_workflow_templates(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore recupero workflow templates: {str(e)}")
 
+@router.delete("/workflow-templates/{template_id}")
+async def delete_workflow_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Elimina workflow template"""
+    try:
+        # Verifica che il workflow esista
+        workflow_check = db.execute(text("SELECT id FROM workflow_templates WHERE id = :id"), {"id": template_id}).fetchone()
+        if not workflow_check:
+            raise HTTPException(status_code=404, detail="Workflow non trovato")
+        
+        # Elimina prima le milestone associate
+        db.execute(text("DELETE FROM milestone_task_templates WHERE milestone_id IN (SELECT id FROM workflow_milestones WHERE workflow_template_id = :workflow_id)"), {"workflow_id": template_id})
+        db.execute(text("DELETE FROM workflow_milestones WHERE workflow_template_id = :workflow_id"), {"workflow_id": template_id})
+        
+        # Elimina il workflow
+        result = db.execute(text("DELETE FROM workflow_templates WHERE id = :id"), {"id": template_id})
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Workflow non trovato")
+        
+        db.commit()
+        return {"message": "Workflow eliminato con successo"}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore eliminazione workflow: {str(e)}")
+
+
 @router.get("/workflow-templates/{template_id}", response_model=CompleteWorkflowResponse)
 async def get_complete_workflow(
     template_id: int,

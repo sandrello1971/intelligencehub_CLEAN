@@ -43,10 +43,16 @@ interface WorkflowTemplateListProps {
   onCloseCreateForm: () => void;
   onWorkflowCreated: () => void;
   onViewDetails?: (workflow: WorkflowTemplate) => void;
+  onEditWorkflow?: (workflow: WorkflowTemplate) => void;
+  onCloneWorkflow?: (workflow: WorkflowTemplate) => void;
+  onDeleteWorkflow?: (workflow: WorkflowTemplate) => void;
 }
 
 const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
   workflows,
+  onEditWorkflow,
+  onCloneWorkflow,
+  onDeleteWorkflow,
   onReload,
   showCreateForm,
   onCloseCreateForm,
@@ -323,26 +329,36 @@ const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
     if (selectedWorkflow && onViewDetails) {
       onViewDetails(selectedWorkflow);
     }
-    setAnchorEl(null); setSelectedWorkflow(null);;
+    setAnchorEl(null); setSelectedWorkflow(null);
   }}>
     <Visibility fontSize="small" sx={{ mr: 1 }} />
     Visualizza Dettagli
   </MenuItem>
   <MenuItem onClick={() => {
-    console.log('Modifica workflow:', selectedWorkflow);
-    setAnchorEl(null); setSelectedWorkflow(null);;
+    if (selectedWorkflow && onEditWorkflow) {
+      onEditWorkflow(selectedWorkflow);
+    }
+    setAnchorEl(null); setSelectedWorkflow(null);
   }}>
     <Edit fontSize="small" sx={{ mr: 1 }} />
+    Modifica
   </MenuItem>
-  <MenuItem onClick={handleCloneWorkflow}>
+  <MenuItem onClick={() => {
+    if (selectedWorkflow && onCloneWorkflow) {
+      onCloneWorkflow(selectedWorkflow);
+    }
+    setAnchorEl(null); setSelectedWorkflow(null);
+  }}>
     <FileCopy fontSize="small" sx={{ mr: 1 }} />
     Clona
   </MenuItem>
   <MenuItem onClick={() => {
     if (selectedWorkflow && confirm(`Sei sicuro di voler eliminare ${selectedWorkflow.nome}?`)) {
-      console.log('Elimina workflow:', selectedWorkflow);
+      if (selectedWorkflow && onDeleteWorkflow) {
+        onDeleteWorkflow(selectedWorkflow);
+      }
     }
-    setAnchorEl(null); setSelectedWorkflow(null);;
+    setAnchorEl(null); setSelectedWorkflow(null);
   }}>
     <Delete fontSize="small" sx={{ mr: 1 }} />
     Elimina

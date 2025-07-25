@@ -34,8 +34,13 @@ class TicketTemplateBase(BaseModel):
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
     priorita: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
-    sla_ore: Optional[int] = None
+    sla_hours: Optional[int] = None
     task_templates: Optional[List[int]] = []  # IDs dei task template
+    articolo_id: Optional[int] = None
+    workflow_template_id: Optional[int] = None
+    auto_assign_rules: Optional[dict] = {}
+    template_description: Optional[str] = None
+    is_active: bool = True
 
 class TicketTemplateCreate(TicketTemplateBase):
     pass
@@ -45,8 +50,13 @@ class TicketTemplateUpdate(BaseModel):
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
     priorita: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
-    sla_ore: Optional[int] = None
+    sla_hours: Optional[int] = None
     task_templates: Optional[List[int]] = None
+    articolo_id: Optional[int] = None
+    workflow_template_id: Optional[int] = None
+    auto_assign_rules: Optional[dict] = None
+    template_description: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class TicketTemplateResponse(TicketTemplateBase):
     id: int

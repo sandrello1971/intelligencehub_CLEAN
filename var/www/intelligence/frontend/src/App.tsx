@@ -15,6 +15,8 @@ import DocumentsRAG from './components/documents/DocumentsRAG';
 import WebScraping from './components/webscraping/WebScraping';
 import Assessment from './components/assessment/Assessment';
 import TaskManagement from "./components/tasks/TaskManagement";
+import ModelliTicket from "./components/templates/ModelliTicket";
+import ModelliTicket from "./components/templates/ModelliTicket";
 import EmailCenter from './components/email/EmailCenter';
 import Articles from "./components/articles/Articles";
 import TipologieServizi from "./components/tipologie-servizi/TipologieServizi";
@@ -48,6 +50,7 @@ function App() {
             <Route path="tasks-global" element={<TasksGlobalManagement />} />
             <Route path="workflow-management" element={<WorkflowManagement />} />
             <Route path="tasks" element={<TaskManagement />} />
+            <Route path="modelli-ticket" element={<ModelliTicket />} />
             <Route path="chat" element={<IntelliChat />} />
             <Route path="documents" element={<DocumentsRAG />} />
             <Route path="web-scraping" element={<WebScraping />} />

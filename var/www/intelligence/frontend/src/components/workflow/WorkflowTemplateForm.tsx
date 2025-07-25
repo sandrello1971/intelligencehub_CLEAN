@@ -185,31 +185,6 @@ const WorkflowTemplateForm: React.FC<WorkflowTemplateFormProps> = ({
             />
           </Grid>
 
-          <Grid item xs={12} md={4}>
-            <FormControl fullWidth>
-              <InputLabel>Articolo Associato</InputLabel>
-              <Select
-                value={formData.articolo_id || ''}
-                onChange={handleInputChange('articolo_id')}
-                label="Articolo Associato"
-              >
-                <MenuItem value="">
-                  <em>Generico (Nessun articolo)</em>
-                </MenuItem>
-                {articoli.map(articolo => (
-                  <MenuItem key={articolo.id} value={articolo.id}>
-                    {getArticoloName(articolo.id)}
-                    <Chip 
-                      label={articolo.tipo_prodotto} 
-                      size="small" 
-                      sx={{ ml: 1 }}
-                      color={articolo.tipo_prodotto === 'composito' ? 'primary' : 'default'}
-                    />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
 
           <Grid item xs={12}>
             <TextField
