@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 # app/main.py - Intelligence Platform FastAPI Application
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +18,7 @@ from app.routes import partner
 from app.routes import articles
 from app.services.web_scraping import api_routes_working
 from app.routes import wiki
+from app.routes import rag_routes
 
 # Database
 from app.database import create_tables
@@ -252,6 +256,7 @@ app.include_router(workflow_management.router)
 from app.routes.admin import milestone_templates
 app.include_router(milestone_templates.router)
 app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
+app.include_router(rag_routes.router, prefix="/api/v1", tags=["rag"])
 
 from app.routes import templates
 app.include_router(templates.router)

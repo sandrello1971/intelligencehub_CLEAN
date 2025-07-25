@@ -24,6 +24,8 @@ import Partner from "./components/partner/Partner";
 import KitCommerciali from "./components/kit-commerciali/KitCommerciali";
 import TasksGlobalManagement from "./components/workflow/TasksGlobalManagement";
 import WorkflowManagement from "./components/workflow/WorkflowManagement";
+import WikiPage from "./pages/wiki/WikiPage";
+import WikiPageViewer from "./components/wiki/WikiPageViewer";
 
 function App() {
   return (
@@ -56,6 +58,8 @@ function App() {
             <Route path="web-scraping" element={<WebScraping />} />
             <Route path="assessment" element={<Assessment />} />
             <Route path="email-center" element={<EmailCenter />} />
+            <Route path="wiki" element={<WikiPage />} />
+            <Route path="wiki/pages/:slug" element={<WikiPageViewer />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/login" replace />} />

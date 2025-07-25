@@ -34,26 +34,38 @@ const IntelliChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const responses = [
-        "Basandomi sui documenti caricati, posso confermare che...",
-        "Ho trovato informazioni rilevanti nei documenti. Ecco cosa ho scoperto:",
-        "Secondo la documentazione aziendale disponibile:",
-        "Dal database RAG risulta che:",
-        "I documenti indicano chiaramente che:"
-      ];
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: `${responses[Math.floor(Math.random() * responses.length)]} "${userMessage.content}". Questa è una risposta simulata - presto avrò accesso completo al sistema RAG per fornire risposte basate sui documenti reali!`,
-        timestamp: new Date()
-      };
+      const response = await fetch('/api/v1/rag/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: userMessage.content
+        })
+      });
 
-      setMessages(prev => [...prev, assistantMessage]);
+      const data = await response.json();
+
+      if (data.success) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: data.response,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } else {
+        throw new Error(data.error || 'Errore nella risposta del server');
+      }
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: '❌ Mi dispiace, si è verificato un errore. Riprova più tardi.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +97,7 @@ const IntelliChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Messages Area - Full Width */}
+      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         <div className="max-w-4xl mx-auto">
           {messages.map((message) => (
@@ -99,37 +111,37 @@ const IntelliChat: React.FC = () => {
                     ? 'bg-blue-600 text-white'
                     : 'bg-white border border-gray-200 shadow-sm'
                 }`}>
-                  <div className="flex items-center mb-2">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${
+                  <div className="flex items-start space-x-3">
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                       message.type === 'user' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
                     }`}>
                       {message.type === 'user' ? '👤' : '🤖'}
                     </div>
-                    <span className={`text-sm font-medium ${
-                      message.type === 'user' ? 'text-white/90' : 'text-gray-700'
-                    }`}>
-                      {message.type === 'user' ? 'Tu' : 'IntelliChat'}
-                    </span>
-                    <span className={`text-xs ml-auto ${
-                      message.type === 'user' ? 'text-white/70' : 'text-gray-500'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div className="whitespace-pre-wrap leading-relaxed">
-                    {message.content}
+                    <div className="flex-1">
+                      <p className={`text-sm ${
+                        message.type === 'user' ? 'text-white/90' : 'text-gray-700'
+                      }`}>
+                        {message.content}
+                      </p>
+                      <span className={`text-xs ${
+                        message.type === 'user' ? 'text-white/70' : 'text-gray-500'
+                      }`}>
+                        {message.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           ))}
-          
+
+          {/* Loading indicator */}
           {isLoading && (
             <div className="flex justify-start">
               <div className="max-w-3xl w-full mr-12">
                 <div className="bg-white border border-gray-200 shadow-sm rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
                       🤖
                     </div>
                     <span className="text-sm font-medium text-gray-700 mr-3">IntelliChat sta pensando...</span>
@@ -146,7 +158,7 @@ const IntelliChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Input Area - Full Width */}
+      {/* Input Area */}
       <div className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex space-x-4">
@@ -154,17 +166,18 @@ const IntelliChat: React.FC = () => {
               <textarea
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                 placeholder="Scrivi la tua domanda sui documenti aziendali..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={2}
+                className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+                maxLength={2000}
+                onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                 disabled={isLoading}
               />
             </div>
             <button
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isLoading}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors flex items-center"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -172,8 +185,8 @@ const IntelliChat: React.FC = () => {
             </button>
           </div>
           
-          <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-            <div className="flex items-center space-x-4">
+          <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
+            <div>
               <span>💡 Suggerimenti: "Analizza i documenti Patent Box", "Trova info su Formazione 4.0", "Riassumi le procedure aziendali"</span>
             </div>
             <div>

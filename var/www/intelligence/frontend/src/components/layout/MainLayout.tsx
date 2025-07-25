@@ -27,7 +27,8 @@ const MainLayout: React.FC = () => {
     { path: '/documents', icon: '📚', label: 'Document RAG' },
     { path: '/web-scraping', icon: '🕷️', label: 'Web Scraping' },
     { path: '/assessment', icon: '📊', label: 'Assessment' },
-    { path: '/email-center', icon: '📧', label: 'Email Center' }
+    { path: '/email-center', icon: '📧', label: 'Email Center' },
+    { path: '/wiki', icon: '📖', label: 'Wiki' },
   ];
 
   return (
