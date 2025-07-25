@@ -4,12 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Typography,
-  Button,
   Tabs, 
   Tab, 
   Paper, 
@@ -60,9 +54,6 @@ const WorkflowManagement: React.FC = () => {
   const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
-  const [showMilestoneDialog, setShowMilestoneDialog] = useState(false);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowTemplate | null>(null);
-  const [workflowMilestones, setWorkflowMilestones] = useState<any[]>([]);
 
   useEffect(() => {
     loadWorkflows();
@@ -99,31 +90,14 @@ const WorkflowManagement: React.FC = () => {
     setShowWizard(true);
   };
 
-const handleViewDetails = (workflow: WorkflowTemplate) => {
-  console.log("Apro gestione milestone per:", workflow);
-  setSelectedWorkflow(workflow);
-  setShowMilestoneDialog(true);
-
-const loadWorkflowMilestones = async (workflowId: number) => {
-  try {
-    const token = localStorage.getItem("access_token");
-    const response = await fetch(`/api/v1/admin/workflow-config/workflow-templates/${workflowId}/milestones`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const data = await response.json();
-      setWorkflowMilestones(data.milestones || []);
-    }
-  } catch (error) {
-    console.error("Errore caricamento milestone:", error);
-  }
-};
-  loadWorkflowMilestones(workflow.id);
-};
-
   const handleWorkflowCreated = () => {
     setShowCreateForm(false);
     loadWorkflows();
+  };
+
+const handleViewDetails = (workflow: WorkflowTemplate) => {
+    console.log("Apro gestione milestone per:", workflow);
+    alert(`Gestione milestone per: ${workflow.nome}`);
   };
 
   if (loading && workflows.length === 0) {
@@ -212,7 +186,6 @@ const loadWorkflowMilestones = async (workflowId: number) => {
             showCreateForm={showCreateForm}
             onCloseCreateForm={() => setShowCreateForm(false)}
             onWorkflowCreated={handleWorkflowCreated}
-            onViewDetails={handleViewDetails}
           />
         </TabPanel>
 
@@ -222,39 +195,11 @@ const loadWorkflowMilestones = async (workflowId: number) => {
       </Paper>
 
       {/* Configuration Wizard Modal */}
-      {/* Milestone Management Dialog */}
-      {showMilestoneDialog && (
-        <Dialog
-          open={showMilestoneDialog}
-          onClose={() => {
-            setShowMilestoneDialog(false);
-            setSelectedWorkflow(null);
-          }}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>
-            Gestione Milestone: {selectedWorkflow?.nome}
-          </DialogTitle>
-          <DialogContent>
-            <Typography>
-              Qui sarà possibile gestire le milestone del workflow.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setShowMilestoneDialog(false)}>
-              Chiudi
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
-
       {showWizard && (
         <ConfigurationWizard
           open={showWizard}
           onClose={() => setShowWizard(false)}
           onWorkflowCreated={handleWorkflowCreated}
-            onViewDetails={handleViewDetails}
         />
       )}
 
