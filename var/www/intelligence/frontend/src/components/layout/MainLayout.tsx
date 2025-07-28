@@ -24,6 +24,7 @@ const MainLayout: React.FC = () => {
     { path: '/workflow-management', icon: '⚙️', label: 'Workflow Management' },
     { path: "/tasks", icon: "⏰", label: "Modelli Task" },
     { path: "/modelli-ticket", icon: "🎫", label: "Modelli Ticket" },
+    { path: "/servizi-template", icon: "🔗", label: "Servizi-Template" },
     { path: '/chat', icon: '🤖', label: 'IntelliChatAI' },
     { path: '/documents', icon: '📚', label: 'Document RAG' },
     { path: '/web-scraping', icon: '🕷️', label: 'Web Scraping' },

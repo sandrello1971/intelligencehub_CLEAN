@@ -259,6 +259,8 @@ app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
 app.include_router(rag_routes.router, prefix="/api/v1", tags=["rag"])
 
 from app.routes import templates
+from app.routes import servizi_template
 from app.routes import tickets
 app.include_router(templates.router)
+app.include_router(servizi_template.router)
 app.include_router(tickets.router, prefix="/api/v1", tags=["tickets"])

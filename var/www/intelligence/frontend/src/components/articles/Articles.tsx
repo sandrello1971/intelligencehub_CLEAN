@@ -20,6 +20,15 @@ interface Partner {
   servizi_count: number;
 }
 
+interface ModelloTicket {
+  id: string;
+  nome: string;
+  descrizione: string;
+  priority: string;
+  sla_hours: number;
+  is_active: boolean;
+}
+
 interface Article {
   id: number;
   codice: string;
@@ -33,6 +42,7 @@ interface Article {
   tipologia_servizio_id?: number;
   partner_id?: number;
   responsabile_user_id?: string;
+  modello_ticket_id?: string;
   created_at: string;
   updated_at: string;
   // Dati relazionali
@@ -49,6 +59,7 @@ interface ArticleFormData {
   durata_mesi?: number;
   tipologia_servizio_id?: number;
   partner_id?: number;
+  modello_ticket_id?: string;
   responsabile_user_id?: string;
 }
 
@@ -58,6 +69,7 @@ const Articles: React.FC = () => {
   const [partner, setPartner] = useState<Partner[]>([]);
   const [partnerFiltrati, setPartnerFiltrati] = useState<Partner[]>([]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [modelliTicket, setModelliTicket] = useState<ModelloTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -143,6 +155,24 @@ const Articles: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchModelliTicket = async () => {
+    try {
+      const response = await fetch("/api/v1/templates/ticket-templates", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setModelliTicket(data);
+      }
+    } catch (error) {
+      console.error("Error fetching modelli ticket:", error);
     }
   };
 
@@ -270,6 +300,7 @@ const Articles: React.FC = () => {
     fetchTipologie();
     fetchPartner();
     fetchAvailableUsers();
+    fetchModelliTicket();
   }, []);
 
   // Filter partner when form data changes
