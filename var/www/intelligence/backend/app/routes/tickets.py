@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 
 from app.core.database import get_db
-from app.core.auth import get_current_user as get_current_user_dep
+from app.routes.auth import get_current_user_dep
 from app.modules.ticketing.services import TicketingService
 from app.modules.ticketing.schemas import (
     TaskResponse, TaskUpdate, TicketResponse, TicketUpdate, TicketListItem,
@@ -207,7 +207,7 @@ def get_commercial_hierarchy(
         # Trova ticket associati alla commessa (da implementare relazione)
         # Per ora cerchiamo per customer_name
         tickets = db.query(Ticket).filter(
-            Ticket.customer_name.ilike(f"%{company.nome}%")
+            Ticket.company_id == company_id
         ).all()
         
         for ticket in tickets:

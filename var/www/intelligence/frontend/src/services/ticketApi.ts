@@ -85,7 +85,7 @@ class TicketApiService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
       body: JSON.stringify(request)
     });
@@ -99,10 +99,10 @@ class TicketApiService {
   }
 
   // Ottieni gerarchia ticket per azienda
-  async getTicketHierarchy(companyId: number, token?: string): Promise<TicketHierarchy> {
+  async getTicketHierarchy(companyId: number): Promise<TicketHierarchy> {
     const response = await fetch(`${this.baseUrl}/tickets/commercial/hierarchy/${companyId}`, {
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 
@@ -117,7 +117,7 @@ class TicketApiService {
   async getTicketDetail(ticketId: number, token?: string): Promise<any> {
     const response = await fetch(`${this.baseUrl}/tickets/${ticketId}`, {
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 
@@ -142,7 +142,7 @@ class TicketApiService {
     const url = `${this.baseUrl}/tickets/?${params.toString()}`;
     const response = await fetch(url, {
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 

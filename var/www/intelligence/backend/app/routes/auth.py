@@ -110,279 +110,50 @@ async def get_current_user_profile():
         "created_at": "2025-07-04T12:28:45.354647"
     }
 
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+async def get_current_user_from_jwt(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Decode JWT token and get current user"""
+    try:
+        # Decode JWT token
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        # Get user from database (supporta sia ID che email)
+        if '@' in user_id:
+            # Se contiene @, è un'email
+            result = db.execute(text("""
+                SELECT id, email, name as first_name, surname as last_name, role, is_active 
+                FROM users WHERE email = :user_id
+            """), {"user_id": user_id})
+        else:
+            # Altrimenti è un ID
+            result = db.execute(text("""
+                SELECT id, email, name as first_name, surname as last_name, role, is_active 
+                FROM users WHERE id = :user_id
+            """), {"user_id": user_id})
+        
+        user_data = result.fetchone()
+        if not user_data:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        if not user_data.is_active:
+            raise HTTPException(status_code=401, detail="User inactive")
+            
+        return user_data
+        
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
 def get_current_user_dep():
     """Dependency to get current user from JWT token"""
-    # For now, return a dummy function
-    # In production, this would decode JWT and return user
-    def _get_current_user():
-        return {"id": "dummy-user", "email": "dummy@example.com", "role": "admin"}
-    return _get_current_user
-
-
-from pydantic import BaseModel
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
-    confirm_password: str = None
-
-@router.post("/change-password")
-async def change_password_api(
-    request: ChangePasswordRequest,
-    db: Session = Depends(get_db)
-):
-    """Change user password"""
-    try:
-        user_email = "s.andrello@enduser-italia.com"  # Hardcoded per ora
-        
-        # Verifica utente attuale
-        result = db.execute(text("""
-            SELECT id, password_hash FROM users WHERE email = :email
-        """), {"email": user_email})
-        
-        user_data = result.fetchone()
-        if not user_data:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Verifica password attuale
-        if not pwd_context.verify(request.current_password, user_data.password_hash):
-            raise HTTPException(status_code=401, detail="Current password is incorrect")
-        
-        # Hash nuova password
-        new_password_hash = pwd_context.hash(request.new_password)
-        
-        # Aggiorna password e rimuovi flag must_change_password
-        db.execute(text("""
-            UPDATE users 
-            SET password_hash = :new_password_hash, 
-                must_change_password = false
-            WHERE id = :user_id
-        """), {
-            "new_password_hash": new_password_hash,
-            "user_id": user_data.id
-        })
-        
-        db.commit()
-        
-        return {"message": "Password changed successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-# JWT utilities
-from jose import jwt, JWTError
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import Depends
-
-security = HTTPBearer()
-
-async def get_current_user_from_jwt(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
-    """Decode JWT token and get current user"""
-    try:
-        # Decode JWT token
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        
-        # Get user from database (supporta sia ID che email)
-        if '@' in user_id:
-            # Se contiene @, è un'email
-            result = db.execute(text("""
-                SELECT id, email, first_name, last_name, role, is_active 
-                FROM users WHERE email = :user_id
-            """), {"user_id": user_id})
-        else:
-            # Altrimenti è un ID
-            result = db.execute(text("""
-                SELECT id, email, first_name, last_name, role, is_active 
-                FROM users WHERE id = :user_id
-            """), {"user_id": user_id})
-        
-        user_data = result.fetchone()
-        if not user_data:
-            raise HTTPException(status_code=401, detail="User not found")
-        
-        if not user_data.is_active:
-            raise HTTPException(status_code=401, detail="User inactive")
-            
-        return user_data
-        
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-@router.post("/change-password")
-async def change_password_jwt(
-    request: ChangePasswordRequest,
-    current_user = Depends(get_current_user_from_jwt),
-    db: Session = Depends(get_db)
-):
-    """Change user password with JWT authentication"""
-    try:
-        # Verifica password attuale
-        result = db.execute(text("""
-            SELECT password_hash FROM users WHERE id = :user_id
-        """), {"user_id": current_user.id})
-        
-        user_data = result.fetchone()
-        if not user_data:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Verifica password attuale
-        if not pwd_context.verify(request.current_password, user_data.password_hash):
-            raise HTTPException(status_code=401, detail="Current password is incorrect")
-        
-        # Hash nuova password
-        new_password_hash = pwd_context.hash(request.new_password)
-        
-        # Aggiorna password e rimuovi flag must_change_password
-        db.execute(text("""
-            UPDATE users 
-            SET password_hash = :new_password_hash, 
-                must_change_password = false
-            WHERE id = :user_id
-        """), {
-            "new_password_hash": new_password_hash,
-            "user_id": current_user.id
-        })
-        
-        db.commit()
-        
-        return {
-            "message": "Password changed successfully",
-            "user": f"{current_user.first_name} {current_user.last_name}"
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-# JWT utilities
-from jose import jwt, JWTError
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import Depends
-
-security = HTTPBearer()
-
-async def get_current_user_from_jwt(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
-    """Decode JWT token and get current user"""
-    try:
-        # Decode JWT token
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        
-        # Get user from database (supporta sia ID che email)
-        if '@' in user_id:
-            # Se contiene @, è un'email
-            result = db.execute(text("""
-                SELECT id, email, first_name, last_name, role, is_active 
-                FROM users WHERE email = :user_id
-            """), {"user_id": user_id})
-        else:
-            # Altrimenti è un ID
-            result = db.execute(text("""
-                SELECT id, email, first_name, last_name, role, is_active 
-                FROM users WHERE id = :user_id
-            """), {"user_id": user_id})
-        
-        user_data = result.fetchone()
-        if not user_data:
-            raise HTTPException(status_code=401, detail="User not found")
-        
-        if not user_data.is_active:
-            raise HTTPException(status_code=401, detail="User inactive")
-            
-        return user_data
-        
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-@router.post("/change-password")
-async def change_password_jwt(
-    request: ChangePasswordRequest,
-    current_user = Depends(get_current_user_from_jwt),
-    db: Session = Depends(get_db)
-):
-    """Change user password with JWT authentication"""
-    try:
-        # Verifica password attuale
-        result = db.execute(text("""
-            SELECT password_hash FROM users WHERE id = :user_id
-        """), {"user_id": current_user.id})
-        
-        user_data = result.fetchone()
-        if not user_data:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Verifica password attuale
-        if not pwd_context.verify(request.current_password, user_data.password_hash):
-            raise HTTPException(status_code=401, detail="Current password is incorrect")
-        
-        # Hash nuova password
-        new_password_hash = pwd_context.hash(request.new_password)
-        
-        # Aggiorna password e rimuovi flag must_change_password
-        db.execute(text("""
-            UPDATE users 
-            SET password_hash = :new_password_hash, 
-                must_change_password = false
-            WHERE id = :user_id
-        """), {
-            "new_password_hash": new_password_hash,
-            "user_id": current_user.id
-        })
-        
-        db.commit()
-        
-        return {
-            "message": "Password changed successfully",
-            "user": f"{current_user.first_name} {current_user.last_name}"
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-# Alias for backward compatibility
-get_current_user = get_current_user_profile
-
-@router.get("/profile")
-async def get_user_profile(
-    current_user = Depends(get_current_user_from_jwt),
-    db: Session = Depends(get_db)
-):
-    """Get current user profile"""
-    try:
-        # Ottieni dati completi utente
-        result = db.execute(text("""
-            SELECT id, username, email, first_name, last_name, name, surname, 
-                   role, is_active, last_login, must_change_password
-            FROM users WHERE id = :user_id
-        """), {"user_id": current_user.id})
-        
-        user_data = result.fetchone()
-        if not user_data:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        return {
-            "id": str(user_data.id),
-            "username": user_data.username,
-            "email": user_data.email,
-            "first_name": user_data.first_name or user_data.name,
-            "last_name": user_data.last_name or user_data.surname,
-            "role": user_data.role,
-            "is_active": user_data.is_active,
-            "last_login": user_data.last_login.isoformat() if user_data.last_login else None,
-            "must_change_password": user_data.must_change_password or False,
-            "permissions": {}
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    return get_current_user_from_jwt

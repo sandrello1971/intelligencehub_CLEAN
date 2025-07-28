@@ -85,6 +85,7 @@ const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigge
     setError(null);
 
     try {
+      console.log("DEBUG: Calling hierarchy with company ID:", selectedCompany.id, "Company:", selectedCompany);
       const data = await ticketApi.getTicketHierarchy(selectedCompany.id);
       setHierarchy(data);
     } catch (err: any) {

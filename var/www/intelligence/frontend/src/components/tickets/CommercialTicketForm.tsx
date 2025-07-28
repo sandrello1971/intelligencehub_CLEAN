@@ -1,5 +1,6 @@
 // frontend/src/components/tickets/CommercialTicketForm.tsx
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Box,
   Paper,
@@ -46,6 +47,7 @@ const CommercialTicketForm: React.FC<CommercialTicketFormProps> = ({
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedKit, setSelectedKit] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
+  const { user } = useAuth();
   const [companySearch, setCompanySearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [companiesLoading, setCompaniesLoading] = useState(false);
@@ -113,13 +115,13 @@ const CommercialTicketForm: React.FC<CommercialTicketFormProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer dummy-token' // TODO: Usa token reale
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           company_id: selectedCompany.id,
           kit_commerciale_id: selectedKit,
           notes: notes.trim(),
-          owner_id: '2e82079c-fbca-46a9-87af-adf309661b93' // TODO: Usa utente corrente
+          owner_id: user?.id || 'default-user'
         })
       });
 
