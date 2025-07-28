@@ -303,12 +303,11 @@ const WorkflowTemplateList: React.FC<WorkflowTemplateListProps> = ({
                         e.preventDefault();
                         e.stopPropagation();
                         console.log("CAZZO DI MODIFICA CLICKED:", workflow);
-                        alert("MODIFICA FUNZIONA: " + workflow.nome);
+                        onEditWorkflow?.(workflow);
                       }}
                     >
                       Modifica
-  Modifica
-</Button>
+                    </Button>
 
 
                   </CardActions>

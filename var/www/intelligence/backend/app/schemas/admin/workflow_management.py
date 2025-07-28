@@ -2,6 +2,7 @@
 # Schema per gestire l'architettura esistente - IntelligenceHUB
 
 from pydantic import BaseModel, Field, validator
+from uuid import UUID
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -54,7 +55,6 @@ class WorkflowTemplateBase(BaseModel):
     """Schema per workflow template"""
     nome: str = Field(..., max_length=200, description="Nome workflow")
     descrizione: Optional[str] = Field(None, description="Descrizione workflow")
-    articolo_id: Optional[int] = Field(None, description="ID articolo associato")
     durata_stimata_giorni: Optional[int] = Field(None, description="Durata stimata giorni")
     ordine: int = Field(0, description="Ordine workflow")
     wkf_code: Optional[str] = Field(None, max_length=50, description="Codice workflow")
@@ -132,6 +132,26 @@ class WorkflowTemplateWithMilestones(WorkflowTemplateResponse):
 class WorkflowMilestoneWithTasks(WorkflowMilestoneResponse):
     """Milestone con task template associati"""
     task_templates: List[MilestoneTaskTemplateResponse] = Field(default=[], description="Task template della milestone")
+
+# ===== TICKET TEMPLATE SERVIZI SCHEMAS =====
+class TicketTemplateServizioBase(BaseModel):
+    """Schema per associazione ticket template - servizi"""
+    ticket_template_id: UUID = Field(..., description="ID ticket template")
+    articolo_id: Optional[int] = Field(None, description="ID articolo servizio")
+    kit_commerciale_id: Optional[int] = Field(None, description="ID kit commerciale")
+
+class TicketTemplateServizioCreate(TicketTemplateServizioBase):
+    """Schema creazione associazione ticket-servizio"""
+    pass
+
+class TicketTemplateServizioResponse(TicketTemplateServizioBase):
+    """Schema risposta associazione ticket-servizio"""
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 
 class CompleteWorkflowResponse(WorkflowTemplateResponse):
     """Workflow completo con milestone e task"""

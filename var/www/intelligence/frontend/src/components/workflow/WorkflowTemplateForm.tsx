@@ -38,7 +38,6 @@ interface WorkflowTemplateFormProps {
 interface FormData {
   nome: string;
   descrizione: string;
-  articolo_id: number | null;
   durata_stimata_giorni: number | null;
   wkf_code: string;
   wkf_description: string;
@@ -54,7 +53,6 @@ const WorkflowTemplateForm: React.FC<WorkflowTemplateFormProps> = ({
   const [formData, setFormData] = useState<FormData>({
     nome: workflow?.nome || '',
     descrizione: workflow?.descrizione || '',
-    articolo_id: workflow?.articolo_id || null,
     durata_stimata_giorni: workflow?.durata_stimata_giorni || null,
     wkf_code: workflow?.wkf_code || '',
     wkf_description: workflow?.wkf_description || '',
@@ -101,7 +99,9 @@ const WorkflowTemplateForm: React.FC<WorkflowTemplateFormProps> = ({
         ordine: 0 // Default order
       };
 
-      const response = await workflowApi.createWorkflowTemplate(submitData);
+      const response = workflow 
+        ? await workflowApi.updateWorkflowTemplate(workflow.id, submitData) 
+        : await workflowApi.createWorkflowTemplate(submitData);
       
       if (response.success) {
         onSuccess();

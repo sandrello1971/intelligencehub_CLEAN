@@ -6,7 +6,6 @@ class WorkflowTemplate(Base):
     __tablename__ = "workflow_templates"
     
     id = Column(Integer, primary_key=True, index=True)
-    articolo_id = Column(Integer, ForeignKey("articoli.id"))
     nome = Column(String(200), nullable=False)
     descrizione = Column(Text)
     durata_stimata_giorni = Column(Integer)

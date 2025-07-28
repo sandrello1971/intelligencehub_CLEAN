@@ -13,6 +13,7 @@ import {
   StepContent,
   Button,
   Typography,
+  TextField,
   Box,
   Grid,
   Card,
@@ -46,8 +47,8 @@ interface ConfigurationWizardProps {
 }
 
 interface WizardData {
-  selectedArticolo: Articolo | null;
-  selectedKit: KitCommerciale | null;
+  nome: string;
+  descrizione: string;
   workflowType: 'simple' | 'complete';
   includeMilestones: boolean;
   includeTasks: boolean;
@@ -64,9 +65,9 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [kits, setKits] = useState<KitCommerciale[]>([]);
   const [loading, setLoading] = useState(false);
   const [wizardData, setWizardData] = useState<WizardData>({
-    selectedArticolo: null,
-    selectedKit: null,
-    workflowType: 'simple',
+    nome: "",
+    descrizione: "",
+    workflowType: "simple",
     includeMilestones: true,
     includeTasks: true,
     autoGenerate: false
@@ -102,8 +103,8 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
   const steps = [
     {
-      label: 'Seleziona Servizio',
-      description: 'Scegli il servizio per cui creare il workflow'
+      label: 'Configurazione Base',
+      description: 'Configura nome e descrizione del workflow'
     },
     {
       label: 'Tipo Workflow',
@@ -126,9 +127,9 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const handleReset = () => {
     setActiveStep(0);
     setWizardData({
-      selectedArticolo: null,
-      selectedKit: null,
-      workflowType: 'simple',
+      nome: "",
+      descrizione: "",
+      workflowType: "simple",
       includeMilestones: true,
       includeTasks: true,
       autoGenerate: false
@@ -136,17 +137,16 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   };
 
   const handleCreateWorkflow = async () => {
-    if (!wizardData.selectedArticolo) return;
+    if (!wizardData.nome.trim()) return;
 
     setLoading(true);
     try {
       const workflowData = {
-        nome: `Workflow ${wizardData.selectedArticolo.nome}`,
-        descrizione: `Workflow automaticamente generato per ${wizardData.selectedArticolo.nome}`,
-        articolo_id: wizardData.selectedArticolo.id,
-        durata_stimata_giorni: wizardData.selectedArticolo.durata_mesi ? wizardData.selectedArticolo.durata_mesi * 30 : 30,
-        wkf_code: `WKF_${wizardData.selectedArticolo.codice}`,
-        wkf_description: `Workflow per gestione ${wizardData.selectedArticolo.nome}`,
+        nome: wizardData.nome,
+        descrizione: wizardData.descrizione || `Workflow ${wizardData.nome}`,
+        durata_stimata_giorni: 30,
+        wkf_code: `WKF_${wizardData.nome.replace(/s+/g, "_").toUpperCase()}`,
+        wkf_description: wizardData.descrizione || `Workflow per ${wizardData.nome}`,
         attivo: true
       };
 
@@ -158,7 +158,7 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
         handleReset();
       }
     } catch (error) {
-      console.error('Errore creazione workflow:', error);
+      console.error("Errore creazione workflow:", error);
     } finally {
       setLoading(false);
     }
@@ -167,7 +167,7 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const canProceed = (step: number) => {
     switch (step) {
       case 0:
-        return wizardData.selectedArticolo !== null;
+        return wizardData.nome.trim() !== "";
       case 1:
         return true;
       case 2:
@@ -210,58 +210,45 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 </Typography>
               </StepLabel>
               <StepContent>
-                {/* Step 0: Selezione Servizio */}
+                {/* Step 0: Configurazione Base */}
                 {index === 0 && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle2" sx={{ mb: 2 }}>
-                      Scegli il servizio base per il workflow:
+                      Configura le informazioni base del workflow:
                     </Typography>
                     
-                    <Grid container spacing={2}>
-                      {articoli.map((articolo) => (
-                        <Grid item xs={12} sm={6} key={articolo.id}>
-                          <Card
-                            sx={{
-                              cursor: 'pointer',
-                              border: wizardData.selectedArticolo?.id === articolo.id ? 2 : 1,
-                              borderColor: wizardData.selectedArticolo?.id === articolo.id ? 'primary.main' : 'divider',
-                              '&:hover': { borderColor: 'primary.light' }
-                            }}
-                            onClick={() => setWizardData(prev => ({ ...prev, selectedArticolo: articolo }))}
-                          >
-                            <CardContent sx={{ pb: 1 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                  {articolo.codice}
-                                </Typography>
-                                <Chip
-                                  label={articolo.tipo_prodotto}
-                                  size="small"
-                                  color={articolo.tipo_prodotto === 'composito' ? 'primary' : 'default'}
-                                />
-                              </Box>
-                              <Typography variant="body2" sx={{ mb: 1 }}>
-                                {articolo.nome}
-                              </Typography>
-                              {articolo.descrizione && (
-                                <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
-                                  {articolo.descrizione.substring(0, 80)}...
-                                </Typography>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                      ))}
+                    <Grid container spacing={3}>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Nome Workflow"
+                          placeholder="Es: Workflow Gestione Commesse"
+                          value={wizardData.nome}
+                          onChange={(e) => setWizardData(prev => ({ ...prev, nome: e.target.value }))}
+                          variant="outlined"
+                          required
+                          sx={{ mb: 2 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Descrizione" 
+                          placeholder="Descrizione dettagliata del workflow..."
+                          value={wizardData.descrizione}
+                          onChange={(e) => setWizardData(prev => ({ ...prev, descrizione: e.target.value }))}
+                          variant="outlined"
+                          multiline
+                          rows={3}
+                        />
+                      </Grid>
                     </Grid>
                   </Box>
                 )}
 
-                {/* Step 1: Tipo Workflow */}
+                {/* Step 1: Tipo Workflow */
                 {index === 1 && (
                   <Box sx={{ mt: 2 }}>
-                    <Alert severity="info" sx={{ mb: 3 }}>
-                      Configurazione per: <strong>{wizardData.selectedArticolo?.nome}</strong>
-                    </Alert>
 
                     <Typography variant="subtitle2" sx={{ mb: 2 }}>
                       Configura le opzioni del workflow:
@@ -335,55 +322,43 @@ const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   </Box>
                 )}
 
+
                 {/* Step 2: Conferma */}
                 {index === 2 && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle2" sx={{ mb: 2 }}>
                       Riepilogo configurazione:
                     </Typography>
-
                     <Card variant="outlined" sx={{ mb: 2 }}>
                       <CardContent>
                         <Grid container spacing={2}>
                           <Grid item xs={12} sm={6}>
                             <Typography variant="caption" color="textSecondary">
-                              SERVIZIO SELEZIONATO
+                              NOME WORKFLOW
                             </Typography>
                             <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                              {wizardData.selectedArticolo?.codice} - {wizardData.selectedArticolo?.nome}
+                              {wizardData.nome}
                             </Typography>
                           </Grid>
                           <Grid item xs={12} sm={6}>
                             <Typography variant="caption" color="textSecondary">
-                              TIPO PRODOTTO
+                              TIPO WORKFLOW
                             </Typography>
                             <Typography variant="body1">
-                              {wizardData.selectedArticolo?.tipo_prodotto}
+                              {wizardData.workflowType === "simple" ? "Semplice" : "Completo"}
                             </Typography>
                           </Grid>
                           <Grid item xs={12}>
                             <Typography variant="caption" color="textSecondary">
-                              CONFIGURAZIONI
+                              DESCRIZIONE
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                              {wizardData.includeMilestones && (
-                                <Chip label="Con Milestone" size="small" color="primary" />
-                              )}
-                              {wizardData.includeTasks && (
-                                <Chip label="Con Task" size="small" color="primary" />
-                              )}
-                              {wizardData.autoGenerate && (
-                                <Chip label="Auto-generato" size="small" color="secondary" />
-                              )}
-                            </Box>
+                            <Typography variant="body1">
+                              {wizardData.descrizione || "Nessuna descrizione fornita"}
+                            </Typography>
                           </Grid>
                         </Grid>
                       </CardContent>
                     </Card>
-
-                    <Alert severity="success">
-                      Il workflow verrà creato e sarà immediatamente disponibile per la configurazione delle milestone e task.
-                    </Alert>
                   </Box>
                 )}
 

@@ -69,6 +69,8 @@ const WorkflowManagement: React.FC = () => {
   const [workflowMilestones, setWorkflowMilestones] = useState<any[]>([]);
   const [showManageMilestonesDialog, setShowManageMilestonesDialog] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<any[]>([]);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState<WorkflowTemplate | null>(null);
 
   useEffect(() => {
     loadWorkflows();
@@ -107,7 +109,8 @@ const WorkflowManagement: React.FC = () => {
 
   const handleEditWorkflow = (workflow: WorkflowTemplate) => {
     console.log("Modifica workflow:", workflow);
-    alert(`Modifica workflow: ${workflow.nome}\n\nProssimo step: Implementare form di modifica`);
+    setEditingWorkflow(workflow);
+    setShowEditForm(true);
   };
 
   const handleCloneWorkflow = async (workflow: WorkflowTemplate) => {
@@ -364,6 +367,35 @@ const WorkflowManagement: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Dialog Modifica Workflow */}
+      <Dialog
+        open={showEditForm}
+        onClose={() => {
+          setShowEditForm(false);
+          setEditingWorkflow(null);
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogContent>
+          {editingWorkflow && (
+            <WorkflowTemplateForm
+              workflow={editingWorkflow}
+              articoli={[]}
+              onCancel={() => {
+                setShowEditForm(false);
+                setEditingWorkflow(null);
+              }}
+              onSuccess={() => {
+                setShowEditForm(false);
+                setEditingWorkflow(null);
+                loadWorkflows();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog Gestione Milestone */}
       <Dialog
         open={showManageMilestonesDialog}
@@ -412,8 +444,38 @@ const WorkflowManagement: React.FC = () => {
           <Button onClick={() => setShowManageMilestonesDialog(false)}>Chiudi</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Dialog Modifica Workflow */}
+      <Dialog
+        open={showEditForm}
+        onClose={() => {
+          setShowEditForm(false);
+          setEditingWorkflow(null);
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogContent>
+          {editingWorkflow && (
+            <WorkflowTemplateForm
+              workflow={editingWorkflow}
+              articoli={[]}
+              onCancel={() => {
+                setShowEditForm(false);
+                setEditingWorkflow(null);
+              }}
+              onSuccess={() => {
+                setShowEditForm(false);
+                setEditingWorkflow(null);
+                loadWorkflows();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
+
 
 export default WorkflowManagement;

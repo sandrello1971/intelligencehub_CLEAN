@@ -38,7 +38,6 @@ export interface WorkflowTemplate {
   id: number;
   nome: string;
   descrizione: string;
-  articolo_id: number | null;
   durata_stimata_giorni: number | null;
   ordine: number;
   wkf_code: string | null;
@@ -145,11 +144,8 @@ class WorkflowApiClient {
   }
 
   // ===== WORKFLOW TEMPLATES =====
-  async getWorkflowTemplates(articolo_id?: number, attivo: boolean = true): Promise<ApiResponse<WorkflowTemplate[]>> {
-    let endpoint = `/admin/workflow-config/workflow-templates?attivo=${attivo}`;
-    if (articolo_id) endpoint += `&articolo_id=${articolo_id}`;
-    
-    return this.request<WorkflowTemplate[]>(endpoint);
+  async getWorkflowTemplates(attivo: boolean = true): Promise<ApiResponse<WorkflowTemplate[]>> {
+    return this.request<WorkflowTemplate[]>(`/admin/workflow-config/workflow-templates?attivo=${attivo}`);
   }
 
   async getWorkflowTemplate(id: number): Promise<ApiResponse<CompleteWorkflow>> {
@@ -159,6 +155,13 @@ class WorkflowApiClient {
   async createWorkflowTemplate(data: Partial<WorkflowTemplate>): Promise<ApiResponse<WorkflowTemplate>> {
     return this.request<WorkflowTemplate>('/admin/workflow-config/workflow-templates', {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateWorkflowTemplate(id: number, data: Partial<WorkflowTemplate>): Promise<ApiResponse<WorkflowTemplate>> {
+    return this.request<WorkflowTemplate>(`/admin/workflow-config/workflow-templates/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
@@ -182,7 +185,6 @@ class WorkflowApiClient {
   // ===== WORKFLOW MANAGEMENT =====
   async cloneWorkflow(workflowId: number, data: {
     new_name: string;
-    new_articolo_id?: number;
     clone_milestones: boolean;
     clone_tasks: boolean;
   }): Promise<ApiResponse<any>> {
@@ -200,14 +202,12 @@ class WorkflowApiClient {
     return this.request('/admin/workflow-management/statistics/overview');
   }
 
-
   // ===== MILESTONE TEMPLATES STANDALONE =====
   async createMilestoneTemplate(data: {
     nome: string;
     descrizione: string;
     durata_stimata_giorni: number | null;
     categoria: string;
-    
   }): Promise<ApiResponse<any>> {
     return this.request("/admin/workflow-config/milestone-templates", {
       method: "POST", 

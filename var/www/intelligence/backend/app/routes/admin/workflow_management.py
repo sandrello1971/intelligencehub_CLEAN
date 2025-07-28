@@ -425,7 +425,7 @@ async def get_workflow_statistics(
                 )
             },
             "usage_stats": usage_stats,
-            "recommendations": self._generate_recommendations(result)
+            "recommendations": _generate_recommendations(result)
         }
         
     except Exception as e:

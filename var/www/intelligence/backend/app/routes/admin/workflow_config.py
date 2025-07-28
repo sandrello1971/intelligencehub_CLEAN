@@ -197,6 +197,66 @@ async def create_workflow_template(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore creazione workflow template: {str(e)}")
 
+@router.patch("/workflow-templates/{template_id}", response_model=WorkflowTemplateResponse)
+async def update_workflow_template(
+    template_id: int,
+    workflow_data: WorkflowTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Aggiorna workflow template esistente"""
+    try:
+        # Verifica che il workflow esista
+        check_query = "SELECT id FROM workflow_templates WHERE id = :id"
+        existing = db.execute(text(check_query), {"id": template_id}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Workflow non trovato")
+        
+        # Aggiorna workflow
+        update_query = """
+        UPDATE workflow_templates 
+        SET nome = :nome, descrizione = :descrizione, 
+            durata_stimata_giorni = :durata_stimata_giorni, ordine = :ordine,
+            wkf_code = :wkf_code, wkf_description = :wkf_description, attivo = :attivo
+        WHERE id = :id
+        """
+        
+        db.execute(text(update_query), {
+            "id": template_id,
+            "nome": workflow_data.nome,
+            "descrizione": workflow_data.descrizione,
+            "durata_stimata_giorni": workflow_data.durata_stimata_giorni,
+            "ordine": workflow_data.ordine,
+            "wkf_code": workflow_data.wkf_code,
+            "wkf_description": workflow_data.wkf_description,
+            "attivo": workflow_data.attivo
+        })
+        
+        db.commit()
+        
+        # Recupera il workflow aggiornato
+        get_query = "SELECT * FROM workflow_templates WHERE id = :id"
+        result = db.execute(text(get_query), {"id": template_id}).fetchone()
+        
+        return WorkflowTemplateResponse(
+            id=result.id,
+            nome=result.nome,
+            descrizione=result.descrizione,
+            durata_stimata_giorni=result.durata_stimata_giorni,
+            ordine=result.ordine,
+            wkf_code=result.wkf_code,
+            wkf_description=result.wkf_description,
+            attivo=result.attivo,
+            created_at=result.created_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore aggiornamento workflow: {str(e)}")
+
 @router.get("/workflow-templates", response_model=List[WorkflowTemplateResponse])
 async def list_workflow_templates(
     articolo_id: Optional[int] = Query(None),
@@ -207,11 +267,9 @@ async def list_workflow_templates(
     """Lista workflow templates"""
     try:
         query = """
-        SELECT wt.id, wt.nome, wt.descrizione, wt.articolo_id, wt.durata_stimata_giorni,
-               wt.ordine, wt.wkf_code, wt.wkf_description, wt.attivo, wt.created_at,
-               a.nome as articolo_nome
+        SELECT wt.id, wt.nome, wt.descrizione, wt.durata_stimata_giorni,
+               wt.ordine, wt.wkf_code, wt.wkf_description, wt.attivo, wt.created_at
         FROM workflow_templates wt
-        LEFT JOIN articoli a ON wt.articolo_id = a.id
         WHERE wt.attivo = :attivo
         """
         
@@ -231,7 +289,6 @@ async def list_workflow_templates(
                 id=row.id,
                 nome=row.nome,
                 descrizione=row.descrizione,
-                articolo_id=row.articolo_id,
                 durata_stimata_giorni=row.durata_stimata_giorni,
                 ordine=row.ordine,
                 wkf_code=row.wkf_code,
