@@ -1,95 +1,46 @@
 from sqlalchemy import Column, String, Text, Integer, DateTime, Boolean, ForeignKey, Numeric, Date
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-#from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
-
 from app.core.database import Base
 
 class Commessa(Base):
     __tablename__ = "commesse"
     
+    # Campi reali dal database
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    codice = Column(String(50), unique=True, nullable=False, index=True)
-    nome = Column(String(255), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"))
+    name = Column(Text, nullable=False)  # Nome della commessa
+    codice = Column(Text)
     descrizione = Column(Text)
+    stato = Column(Text, default='attiva')
+    created_at = Column(DateTime, default=func.now())
     client_id = Column(Integer, ForeignKey("companies.id"))
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     budget = Column(Numeric(15,2))
     data_inizio = Column(Date)
     data_fine_prevista = Column(Date)
-    status = Column(String(50), default="active")
+    status = Column(String(50), default='active')
     sla_default_hours = Column(Integer, default=48)
-    meta_data = Column(JSONB, default={})
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    meta_data = Column("metadata", JSONB, default=dict)
+    updated_at = Column(DateTime, default=func.now())
+    kit_commerciale_id = Column(Integer, ForeignKey("kit_commerciali.id"))
+    commerciale_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    tipo_commessa = Column(String(50), default='standard')
+    valore_contratto = Column(Numeric(15,2))
+    ord_date = Column(Date)
+    ord_description = Column(Text)
+    cst_id = Column(Integer)
     
-    # Relationships
-#    client = relationship("Company", back_populates="commesse")
-#    owner = relationship("User", back_populates="owned_commesse")
-#    milestones = relationship("Milestone", back_populates="commessa")
-#    tickets = relationship("Ticket", back_populates="commessa")
+    # Proprietà per compatibilità con il codice esistente
+    @property
+    def nome(self):
+        return self.name
+    
+    @nome.setter
+    def nome(self, value):
+        self.name = value
     
     def __repr__(self):
-        return f"<Commessa {self.codice}: {self.nome}>"
+        return f"<Commessa {self.codice}: {self.name}>"
 
-class Milestone(Base):
-    __tablename__ = "milestones"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    commessa_id = Column(UUID(as_uuid=True), ForeignKey("commesse.id"))
-    nome = Column(String(255), nullable=False)
-    descrizione = Column(Text)
-    ordine = Column(Integer, nullable=False)
-    sla_days = Column(Integer, default=7)
-    warning_days = Column(Integer, default=2)
-    escalation_days = Column(Integer, default=1)
-    auto_generate_tickets = Column(Boolean, default=True)
-    template_data = Column(JSONB, default={})
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-#    commessa = relationship("Commessa", back_populates="milestones")
-#    tickets = relationship("Ticket", back_populates="milestone")
-#    modelli_ticket = relationship("ModelloTicket", back_populates="milestone")
-
-class ModelloTask(Base):
-    __tablename__ = "modelli_task"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nome = Column(String(255), nullable=False)
-    descrizione = Column(Text)
-    categoria = Column(String(100))
-    sla_hours = Column(Integer, default=24)
-    priorita = Column(String(50), default="medium")
-    assignee_default_role = Column(String(50))
-    checklist = Column(JSONB, default=[])
-    template_content = Column(Text)
-    tags = Column(JSONB, default=[])
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-#    created_by_user = relationship("User")
-#    tasks = relationship("Task", back_populates="modello_task")
-
-class ModelloTicket(Base):
-    __tablename__ = "modelli_ticket"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nome = Column(String(255), nullable=False)
-    descrizione = Column(Text)
-    # Campi aggiornati per workflow integration
-    articolo_id = Column(Integer, ForeignKey("articoli.id"), nullable=True)
-    workflow_template_id = Column(Integer, ForeignKey("workflow_templates.id"), nullable=True)
-    priority = Column(String(20), default="media")
-    sla_hours = Column(Integer, default=24)
-    template_description = Column(Text)
-    
-    auto_assign_rules = Column(JSONB, default={})
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-#    milestone = relationship("Milestone", back_populates="modelli_ticket")

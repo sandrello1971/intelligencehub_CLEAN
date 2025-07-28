@@ -146,3 +146,37 @@ class BulkOperationResult(BaseModel):
     tickets_closed: int
     closed_ids: List[int]
     timestamp: str
+
+# ===== COMMERCIAL SCHEMAS =====
+
+class CommercialCommessaRequest(BaseModel):
+    """Schema per creazione commessa da kit commerciale"""
+    company_id: int = Field(..., description="ID azienda dal database")
+    kit_commerciale_id: int = Field(..., description="ID kit commerciale")
+    notes: Optional[str] = Field("", description="Note aggiuntive")
+    owner_id: Optional[str] = Field(None, description="Owner, default utente corrente")
+
+class CommercialCommessaResponse(BaseModel):
+    """Schema risposta creazione commessa commerciale"""
+    success: bool
+    commessa_id: str
+    ticket_padre: TicketResponse
+    kit_info: Dict[str, Any]
+    servizi_inclusi: List[str]
+    crm_activity_id: Optional[int] = None
+    milestones_generate: List[Dict[str, Any]]
+    message: str
+
+class OpportunityGenerationRequest(BaseModel):
+    """Schema per generazione opportunità/ticket figli"""
+    commessa_id: str = Field(..., description="ID commessa padre")
+    force_generation: bool = Field(False, description="Forza anche se task aperti")
+
+class OpportunityGenerationResponse(BaseModel):
+    """Schema risposta generazione opportunità"""
+    success: bool
+    commessa_id: str
+    opportunita_create: List[Dict[str, Any]]
+    ticket_figli_generati: List[TicketResponse]
+    message: str
+

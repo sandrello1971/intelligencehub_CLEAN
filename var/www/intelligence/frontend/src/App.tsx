@@ -22,6 +22,7 @@ import Articles from "./components/articles/Articles";
 import TipologieServizi from "./components/tipologie-servizi/TipologieServizi";
 import Partner from "./components/partner/Partner";
 import KitCommerciali from "./components/kit-commerciali/KitCommerciali";
+import CommercialTickets from "./pages/dashboard/CommercialTickets";
 import TasksGlobalManagement from "./components/workflow/TasksGlobalManagement";
 import WorkflowManagement from "./components/workflow/WorkflowManagement";
 import WikiPage from "./pages/wiki/WikiPage";
@@ -47,6 +48,7 @@ function App() {
             <Route path="aziende" element={<Companies />} />
             <Route path="articoli" element={<Articles />} />
             <Route path="kit-commerciali" element={<KitCommerciali />} />
+            <Route path="ticket-commerciali" element={<CommercialTickets />} />
             <Route path="tipologie-servizi" element={<TipologieServizi />} />
             <Route path="partner" element={<Partner />} />
             <Route path="tasks-global" element={<TasksGlobalManagement />} />

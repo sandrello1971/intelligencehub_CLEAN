@@ -258,5 +258,7 @@ app.include_router(milestone_templates.router)
 app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
 app.include_router(rag_routes.router, prefix="/api/v1", tags=["rag"])
 
-from app.routes import templates
-app.include_router(templates.router)
+# from app.routes import templates
+from app.routes import tickets
+# app.include_router(templates.router)
+app.include_router(tickets.router, prefix="/api/v1", tags=["tickets"])

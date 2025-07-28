@@ -14,7 +14,7 @@ from .company import Company
 from .other import SubType, Owner, PhaseTemplate, Opportunity, CrmLink
 from .activity import Activity
 from .ticket import Ticket  
-from .commesse import Milestone
+from .milestone import Milestone
 from .task import Task
 
 # Additional models (if they exist)

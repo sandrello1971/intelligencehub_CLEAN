@@ -130,6 +130,42 @@ async def list_companies(
     except Exception as e:
         logger.error(f"Error listing companies: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/search")
+async def search_companies_autocomplete(
+    q: str = Query(..., description="Search query", min_length=2),
+    limit: int = Query(10, le=50),
+    db: Session = Depends(get_db)
+):
+    """Search companies for autocomplete"""
+    try:
+        query = """
+        SELECT id, name, partita_iva, settore
+        FROM companies 
+        WHERE LOWER(name) LIKE LOWER(:search)
+        ORDER BY name
+        LIMIT :limit
+        """
+        
+        result = db.execute(text(query), {
+            "search": f"%{q}%",
+            "limit": limit
+        }).fetchall()
+        
+        companies = []
+        for row in result:
+            companies.append({
+                "id": row[0],
+                "name": row[1], 
+                "partita_iva": row[2],
+                "settore": row[3]
+            })
+        
+        return {"companies": companies}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 @router.get("/{company_id}", response_model=CompanyResponse)
 async def get_company(company_id: int, db: Session = Depends(get_db)):
@@ -293,4 +329,5 @@ async def get_companies_stats(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting companies stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 

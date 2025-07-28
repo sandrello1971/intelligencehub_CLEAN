@@ -306,3 +306,91 @@ class TicketingService:
             "closed_ids": closed_ids,
             "timestamp": datetime.utcnow().isoformat()
         }
+
+
+    # ===== COMMERCIAL METHODS =====
+    
+    def create_commercial_commessa(self, request_data: Dict[str, Any], current_user_id: str) -> Dict[str, Any]:
+        """Crea una commessa commerciale da un kit commerciale"""
+        try:
+            from app.models.kit_commerciali import KitCommerciale, KitArticolo
+            from app.models.commesse import Commessa
+            from app.models.company import Company
+            from app.services.crm.crmsdk import create_crm_activity
+            import uuid
+            
+            # Validazione input
+            company_id = request_data.get("company_id")
+            kit_id = request_data.get("kit_commerciale_id") 
+            notes = request_data.get("notes", "")
+            
+            # Trova azienda
+            company = self.db.query(Company).filter(Company.id == company_id).first()
+            if not company:
+                return {"success": False, "error": "Azienda non trovata"}
+            
+            # Trova kit commerciale
+            kit = self.db.query(KitCommerciale).filter(
+                KitCommerciale.id == kit_id,
+                KitCommerciale.attivo == True
+            ).first()
+            if not kit:
+                return {"success": False, "error": "Kit commerciale non trovato"}
+            
+            # Genera codice commessa univoco
+            commessa_code = f"COM-{kit.nome[:3].upper()}-{str(uuid.uuid4())[:8]}"
+            
+            # Crea la commessa
+            nuova_commessa = Commessa(
+                codice=commessa_code,
+                name=f"{kit.nome} - {company.nome}",
+                descrizione=f"Commessa generata da kit '{kit.nome}'\n\nNote: {notes}",
+                client_id=company_id,
+                owner_id=current_user_id,
+                status="active"
+            )
+            
+            self.db.add(nuova_commessa)
+            self.db.flush()  # Per ottenere l'ID
+            
+            # Crea attività CRM per tracciamento commerciale
+            crm_activity_id = None
+            try:
+                crm_data = {
+                    "subject": f"Commessa {kit.nome} - {company.nome}",
+                    "description": f"Commessa commerciale per {kit.nome}\n\nCliente: {company.nome}\nNote: {notes}",
+                    "companyId": company_id,
+                    "ownerId": current_user_id
+                }
+                crm_activity_id = create_crm_activity(crm_data)
+                print(f"[CRM] Attività creata con ID: {crm_activity_id}")
+            except Exception as e:
+                print(f"[WARNING] CRM activity creation failed: {e}")
+            
+            # Trova articoli del kit
+            kit_articoli = self.db.query(KitArticolo).filter(
+                KitArticolo.kit_commerciale_id == kit_id
+            ).all()
+            
+            servizi_inclusi = []
+            for ka in kit_articoli:
+                if ka.articolo:
+                    servizi_inclusi.append(ka.articolo.nome)
+            
+            self.db.commit()
+            
+            return {
+                "success": True,
+                "commessa_id": str(nuova_commessa.id),
+                "commessa_code": commessa_code,
+                "kit_info": {"nome": kit.nome, "id": kit.id},
+                "company_info": {"nome": company.nome, "id": company.id},
+                "servizi_inclusi": servizi_inclusi,
+                "crm_activity_id": crm_activity_id,
+                "message": f"Commessa {commessa_code} creata con successo"
+            }
+            
+        except Exception as e:
+            self.db.rollback()
+            return {"success": False, "error": str(e)}
+

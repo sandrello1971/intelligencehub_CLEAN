@@ -4,14 +4,15 @@ from typing import List, Optional
 from uuid import UUID
 
 from app.core.database import get_db
-from app.routes.auth import get_current_user_dep
 from app.schemas.templates import (
     ModelloTaskCreate, ModelloTaskUpdate, ModelloTaskResponse,
-    ModelloTicketCreate, ModelloTicketUpdate, ModelloTicketResponse,
+    CreateUpdate, ModelloTicketResponse,
     TemplateListItem
 )
-from app.models.commesse import ModelloTask, ModelloTicket, Milestone
+from app.models.tipi_commesse import ModelloTask
+from app.models.milestone import Milestone
 from app.models.users import User
+
 
 router = APIRouter(prefix="/api/v1/templates", tags=["Template Management"])
 
@@ -151,9 +152,9 @@ async def delete_task_template(
 # TICKET TEMPLATES
 # ==============================================
 
-@router.post("/ticket-templates", response_model=ModelloTicketResponse)
+@router.post("/ticket-templates", response_model=Response)
 async def create_ticket_template(
-    template_data: ModelloTicketCreate,
+    template_data: Create,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_dep)
 ):
@@ -163,7 +164,7 @@ async def create_ticket_template(
     try:
         # Verifica che la milestone esista se specificata
         
-        db_template = ModelloTicket(
+        db_template = ModelloTask(
             nome=template_data.nome,
             descrizione=template_data.descrizione,
             articolo_id=template_data.articolo_id,
@@ -179,13 +180,13 @@ async def create_ticket_template(
         db.commit()
         db.refresh(db_template)
         
-        return ModelloTicketResponse.from_orm(db_template)
+        return Response.from_orm(db_template)
         
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore creazione template ticket: {str(e)}")
 
-@router.get("/ticket-templates", response_model=List[ModelloTicketResponse])
+@router.get("/ticket-templates", response_model=List[Response])
 async def list_ticket_templates(
     is_active: bool = Query(True),
     skip: int = Query(0, ge=0),
@@ -197,20 +198,20 @@ async def list_ticket_templates(
     Lista modelli ticket con filtri
     """
     try:
-        query = db.query(ModelloTicket).filter(ModelloTicket.is_active == is_active)
+        query = db.query().filter(ModelloTicket.is_active == is_active)
         
         
         templates = query.offset(skip).limit(limit).all()
         
-        return [ModelloTicketResponse.from_orm(t) for t in templates]
+        return [Response.from_orm(t) for t in templates]
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore recupero template ticket: {str(e)}")
 
-@router.patch("/ticket-templates/{template_id}", response_model=ModelloTicketResponse)
+@router.patch("/ticket-templates/{template_id}", response_model=Response)
 async def update_ticket_template(
     template_id: UUID,
-    template_update: ModelloTicketUpdate,
+    template_update: Update,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_dep)
 ):
@@ -218,7 +219,7 @@ async def update_ticket_template(
     Aggiorna un modello ticket
     """
     try:
-        template = db.query(ModelloTicket).filter(ModelloTicket.id == template_id).first()
+        template = db.query().filter(ModelloTicket.id == template_id).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template ticket non trovato")
         
@@ -229,7 +230,7 @@ async def update_ticket_template(
         db.commit()
         db.refresh(template)
         
-        return ModelloTicketResponse.from_orm(template)
+        return Response.from_orm(template)
         
     except Exception as e:
         db.rollback()
@@ -260,7 +261,7 @@ async def get_template_categories(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore recupero categorie: {str(e)}")
 
-@router.get("/ticket-templates/{template_id}", response_model=ModelloTicketResponse)
+@router.get("/ticket-templates/{template_id}", response_model=Response)
 async def get_ticket_template(
     template_id: UUID,
     db: Session = Depends(get_db),
@@ -270,19 +271,19 @@ async def get_ticket_template(
     Recupera un singolo modello ticket
     """
     try:
-        template = db.query(ModelloTicket).filter(ModelloTicket.id == template_id).first()
+        template = db.query().filter(ModelloTicket.id == template_id).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template ticket non trovato")
         
-        return ModelloTicketResponse.from_orm(template)
+        return Response.from_orm(template)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore recupero template ticket: {str(e)}")
 
-@router.patch("/ticket-templates/{template_id}", response_model=ModelloTicketResponse)
+@router.patch("/ticket-templates/{template_id}", response_model=Response)
 async def update_ticket_template(
     template_id: UUID,
-    template_update: ModelloTicketUpdate,
+    template_update: Update,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_dep)
 ):
@@ -290,7 +291,7 @@ async def update_ticket_template(
     Aggiorna un modello ticket
     """
     try:
-        template = db.query(ModelloTicket).filter(ModelloTicket.id == template_id).first()
+        template = db.query().filter(ModelloTicket.id == template_id).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template ticket non trovato")
         
@@ -301,7 +302,7 @@ async def update_ticket_template(
         db.commit()
         db.refresh(template)
         
-        return ModelloTicketResponse.from_orm(template)
+        return Response.from_orm(template)
         
     except Exception as e:
         db.rollback()
@@ -318,7 +319,7 @@ async def delete_ticket_template(
     Elimina un modello ticket (soft delete per default)
     """
     try:
-        template = db.query(ModelloTicket).filter(ModelloTicket.id == template_id).first()
+        template = db.query().filter(ModelloTicket.id == template_id).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template ticket non trovato")
         
@@ -339,7 +340,7 @@ async def delete_ticket_template(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore eliminazione template ticket: {str(e)}")
 
-@router.post("/ticket-templates/{template_id}/clone", response_model=ModelloTicketResponse)
+@router.post("/ticket-templates/{template_id}/clone", response_model=Response)
 async def clone_ticket_template(
     template_id: UUID,
     new_name: str = Query(..., description="Nome per il nuovo template clonato"),
@@ -351,12 +352,12 @@ async def clone_ticket_template(
     """
     try:
         # Trova il template sorgente
-        source_template = db.query(ModelloTicket).filter(ModelloTicket.id == template_id).first()
+        source_template = db.query().filter(ModelloTicket.id == template_id).first()
         if not source_template:
             raise HTTPException(status_code=404, detail="Template ticket sorgente non trovato")
         
         # Crea il nuovo template clonato
-        cloned_template = ModelloTicket(
+        cloned_template = (
             nome=new_name,
             descrizione=f"Copia di: {source_template.descrizione}" if source_template.descrizione else None,
             articolo_id=source_template.articolo_id,
@@ -372,7 +373,7 @@ async def clone_ticket_template(
         db.commit()
         db.refresh(cloned_template)
         
-        return ModelloTicketResponse.from_orm(cloned_template)
+        return Response.from_orm(cloned_template)
         
     except Exception as e:
         db.rollback()

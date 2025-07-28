@@ -7,10 +7,13 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 
 from app.core.database import get_db
+from app.core.auth import get_current_user as get_current_user_dep
 from app.modules.ticketing.services import TicketingService
 from app.modules.ticketing.schemas import (
-    TicketResponse, TicketUpdate, TicketListItem, 
-    ServicesInput, BulkOperationResult
+    TaskResponse, TaskUpdate, TicketResponse, TicketUpdate, TicketListItem,
+    ServicesInput, TicketFilters, TaskFilters, BulkOperationResult,
+    CommercialCommessaRequest, CommercialCommessaResponse,
+    OpportunityGenerationRequest, OpportunityGenerationResponse
 )
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -146,3 +149,84 @@ def auto_close_completed_tickets(db: Session = Depends(get_db)):
     result = service.auto_close_completed_tickets()
     
     return result
+
+# ===== COMMERCIAL ENDPOINTS =====
+
+@router.post("/commercial/create-commessa")
+def create_commercial_commessa(
+    request: CommercialCommessaRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_dep)  # Assumendo che esista
+):
+    """Crea una nuova commessa commerciale da kit"""
+    
+    service = TicketingService(db)
+    
+    # Usa l'ID dell'utente corrente se non specificato
+    owner_id = request.owner_id or str(current_user.id)
+    
+    request_data = {
+        "company_id": request.company_id,
+        "kit_commerciale_id": request.kit_commerciale_id,
+        "notes": request.notes
+    }
+    
+    result = service.create_commercial_commessa(request_data, owner_id)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@router.get("/commercial/hierarchy/{company_id}")
+def get_commercial_hierarchy(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_dep)
+):
+    """Ottiene la gerarchia ticket per una azienda (per la vista ad albero)"""
+    from app.models.company import Company
+    from app.models.commesse import Commessa
+    from app.models.ticket import Ticket
+    # Trova l azienda
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Azienda non trovata")
+    
+    # Trova commesse per questa azienda
+    commesse = db.query(Commessa).filter(
+        Commessa.client_id == company_id
+    ).all()
+    
+    service = TicketingService(db)
+    
+    tickets_padre = []
+    tickets_figli = []
+    
+    for commessa in commesse:
+        # Trova ticket associati alla commessa (da implementare relazione)
+        # Per ora cerchiamo per customer_name
+        tickets = db.query(Ticket).filter(
+            Ticket.customer_name.ilike(f"%{company.nome}%")
+        ).all()
+        
+        for ticket in tickets:
+            ticket_detail = service.get_ticket_detail(ticket.id)
+            if ticket_detail:
+                if "[COMMERCIALE]" in ticket.title:
+                    tickets_padre.append(ticket_detail)
+                else:
+                    tickets_figli.append(ticket_detail)
+    
+    return {
+        "cliente": company.nome,
+        "company_id": company_id,
+        "tickets_padre": tickets_padre,
+        "tickets_figli": tickets_figli,
+        "statistics": {
+            "total_commesse": len(commesse),
+            "total_tickets_padre": len(tickets_padre),
+            "total_tickets_figli": len(tickets_figli)
+        }
+    }
+

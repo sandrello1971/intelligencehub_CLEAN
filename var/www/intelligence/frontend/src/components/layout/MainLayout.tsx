@@ -20,6 +20,7 @@ const MainLayout: React.FC = () => {
     { path: '/partner', icon: '🤝', label: 'Partner' },
     { path: '/tipologie-servizi', icon: '🏷️', label: 'Tipologie Servizi' },
     { path: '/kit-commerciali', icon: '📦', label: 'Kit Commerciali' },
+    { path: "/ticket-commerciali", icon: "🎫", label: "Ticket Commerciali" },
     { path: '/workflow-management', icon: '⚙️', label: 'Workflow Management' },
     { path: "/tasks", icon: "⏰", label: "Modelli Task" },
     { path: "/modelli-ticket", icon: "🎫", label: "Modelli Ticket" },
