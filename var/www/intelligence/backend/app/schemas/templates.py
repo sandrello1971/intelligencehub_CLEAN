@@ -1,3 +1,4 @@
+from pydantic import validator
 from uuid import UUID
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -8,7 +9,18 @@ class TaskTemplateBase(BaseModel):
     descrizione: Optional[str] = None
     checklist: Optional[List[str]] = []
     tempo_stimato: Optional[int] = None  # minuti
-    priority: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
+    priority: str = Field(default="medium")
+
+    @validator("priority", pre=True)
+    def map_italian_priority(cls, v):
+        if v is None:
+            return v
+        priority_mapping = {
+            "Alta": "high",
+            "Media": "medium",
+            "Bassa": "low"
+        }
+        return priority_mapping.get(v, v)
     categoria: Optional[str] = None
 
 class TaskTemplateCreate(TaskTemplateBase):
@@ -19,7 +31,7 @@ class TaskTemplateUpdate(BaseModel):
     descrizione: Optional[str] = None
     checklist: Optional[List[str]] = None
     tempo_stimato: Optional[int] = None
-    priority: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
+    priority: Optional[str] = Field(None)
     categoria: Optional[str] = None
 
 class TaskTemplateResponse(TaskTemplateBase):
@@ -34,7 +46,18 @@ class TicketTemplateBase(BaseModel):
     nome: str = Field(..., min_length=1, max_length=200)
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
-    priority: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
+    priority: str = Field(default="medium")
+
+    @validator("priority", pre=True)
+    def map_italian_priority(cls, v):
+        if v is None:
+            return v
+        priority_mapping = {
+            "Alta": "high",
+            "Media": "medium",
+            "Bassa": "low"
+        }
+        return priority_mapping.get(v, v)
     task_templates: Optional[List[int]] = []  # IDs dei task template
     articolo_id: Optional[int] = None
     workflow_template_id: Optional[int] = None
@@ -49,7 +72,7 @@ class TicketTemplateUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=1, max_length=200)
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
-    priority: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
+    priority: Optional[str] = Field(None)
     task_templates: Optional[List[int]] = None
     articolo_id: Optional[int] = None
     workflow_template_id: Optional[int] = None

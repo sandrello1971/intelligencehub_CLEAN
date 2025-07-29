@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -44,6 +45,157 @@ async def list_milestone_templates(
         return templates
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.post("/")
+async def create_milestone_template(
+    template_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Crea nuovo milestone template"""
+    try:
+        # Valori di default
+        nome = template_data.get("nome", "")
+        descrizione = template_data.get("descrizione", "")
+        durata_stimata_giorni = template_data.get("durata_stimata_giorni")
+        sla_giorni = template_data.get("sla_giorni", 7)
+        warning_giorni = template_data.get("warning_giorni", 2)
+        escalation_giorni = template_data.get("escalation_giorni", 1)
+        tipo_milestone = template_data.get("tipo_milestone", "standard")
+        auto_generate_tickets = template_data.get("auto_generate_tickets", False)
+        ordine = template_data.get("ordine", 1)
+        
+        if not nome.strip():
+            raise HTTPException(status_code=400, detail="Nome template obbligatorio")
+        
+        query = """
+        INSERT INTO workflow_milestones 
+        (nome, descrizione, durata_stimata_giorni, sla_giorni, warning_giorni, 
+         escalation_giorni, tipo_milestone, auto_generate_tickets, ordine, workflow_template_id)
+        VALUES 
+        (:nome, :descrizione, :durata_stimata_giorni, :sla_giorni, :warning_giorni,
+         :escalation_giorni, :tipo_milestone, :auto_generate_tickets, :ordine, NULL)
+        RETURNING id, created_at
+        """
+        
+        result = db.execute(text(query), {
+            "nome": nome,
+            "descrizione": descrizione,
+            "durata_stimata_giorni": durata_stimata_giorni,
+            "sla_giorni": sla_giorni,
+            "warning_giorni": warning_giorni,
+            "escalation_giorni": escalation_giorni,
+            "tipo_milestone": tipo_milestone,
+            "auto_generate_tickets": auto_generate_tickets,
+            "ordine": ordine
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "id": result.id,
+            "nome": nome,
+            "descrizione": descrizione,
+            "durata_stimata_giorni": durata_stimata_giorni,
+            "sla_giorni": sla_giorni,
+            "warning_giorni": warning_giorni,
+            "escalation_giorni": escalation_giorni,
+            "tipo_milestone": tipo_milestone,
+            "auto_generate_tickets": auto_generate_tickets,
+            "ordine": ordine,
+            "created_at": result.created_at
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore creazione template: {str(e)}")
+
+ 	
+# Aggiungi questo endpoint dopo il POST "/" nel file milestone_templates.py
+
+@router.put("/{template_id}")
+async def update_milestone_template(
+    template_id: int,
+    template_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Modifica milestone template esistente"""
+    try:
+        # Verifica che il template esista
+        check_query = """
+        SELECT id FROM workflow_milestones 
+        WHERE id = :template_id AND workflow_template_id IS NULL
+        """
+        existing = db.execute(text(check_query), {"template_id": template_id}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Milestone template non trovato")
+        
+        # Valori di update
+        nome = template_data.get("nome", "")
+        descrizione = template_data.get("descrizione", "")
+        durata_stimata_giorni = template_data.get("durata_stimata_giorni")
+        sla_giorni = template_data.get("sla_giorni", 7)
+        warning_giorni = template_data.get("warning_giorni", 2)
+        escalation_giorni = template_data.get("escalation_giorni", 1)
+        tipo_milestone = template_data.get("tipo_milestone", "standard")
+        auto_generate_tickets = template_data.get("auto_generate_tickets", False)
+        ordine = template_data.get("ordine", 1)
+        
+        if not nome.strip():
+            raise HTTPException(status_code=400, detail="Nome template obbligatorio")
+        
+        # Aggiorna il template
+        update_query = """
+        UPDATE workflow_milestones SET
+            nome = :nome,
+            descrizione = :descrizione,
+            durata_stimata_giorni = :durata_stimata_giorni,
+            sla_giorni = :sla_giorni,
+            warning_giorni = :warning_giorni,
+            escalation_giorni = :escalation_giorni,
+            tipo_milestone = :tipo_milestone,
+            auto_generate_tickets = :auto_generate_tickets,
+            ordine = :ordine
+        WHERE id = :template_id AND workflow_template_id IS NULL
+        RETURNING id, created_at
+        """
+        
+        result = db.execute(text(update_query), {
+            "template_id": template_id,
+            "nome": nome,
+            "descrizione": descrizione,
+            "durata_stimata_giorni": durata_stimata_giorni,
+            "sla_giorni": sla_giorni,
+            "warning_giorni": warning_giorni,
+            "escalation_giorni": escalation_giorni,
+            "tipo_milestone": tipo_milestone,
+            "auto_generate_tickets": auto_generate_tickets,
+            "ordine": ordine
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "id": template_id,
+            "nome": nome,
+            "descrizione": descrizione,
+            "durata_stimata_giorni": durata_stimata_giorni,
+            "sla_giorni": sla_giorni,
+            "warning_giorni": warning_giorni,
+            "escalation_giorni": escalation_giorni,
+            "tipo_milestone": tipo_milestone,
+            "auto_generate_tickets": auto_generate_tickets,
+            "ordine": ordine,
+            "created_at": result.created_at,
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore aggiornamento template: {str(e)}")
+
+
 
 @router.get("/{template_id}/tasks")
 async def get_milestone_template_tasks(

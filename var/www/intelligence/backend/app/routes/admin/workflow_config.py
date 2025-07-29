@@ -161,16 +161,15 @@ async def create_workflow_template(
     try:
         query = """
         INSERT INTO workflow_templates 
-        (nome, descrizione, articolo_id, durata_stimata_giorni, ordine, wkf_code, wkf_description, attivo)
+        (nome, descrizione,  durata_stimata_giorni, ordine, wkf_code, wkf_description, attivo)
         VALUES 
-        (:nome, :descrizione, :articolo_id, :durata_stimata_giorni, :ordine, :wkf_code, :wkf_description, :attivo)
+        (:nome, :descrizione,  :durata_stimata_giorni, :ordine, :wkf_code, :wkf_description, :attivo)
         RETURNING id, created_at
         """
         
         result = db.execute(text(query), {
             "nome": workflow_data.nome,
             "descrizione": workflow_data.descrizione,
-            "articolo_id": workflow_data.articolo_id,
             "durata_stimata_giorni": workflow_data.durata_stimata_giorni,
             "ordine": workflow_data.ordine,
             "wkf_code": workflow_data.wkf_code,
@@ -184,7 +183,6 @@ async def create_workflow_template(
             id=result.id,
             nome=workflow_data.nome,
             descrizione=workflow_data.descrizione,
-            articolo_id=workflow_data.articolo_id,
             durata_stimata_giorni=workflow_data.durata_stimata_giorni,
             ordine=workflow_data.ordine,
             wkf_code=workflow_data.wkf_code,
@@ -344,7 +342,7 @@ async def get_complete_workflow(
     try:
         # Recupera workflow template
         workflow_query = """
-        SELECT id, nome, descrizione, articolo_id, durata_stimata_giorni,
+        SELECT id, nome, descrizione, durata_stimata_giorni,
                ordine, wkf_code, wkf_description, attivo, created_at
         FROM workflow_templates 
         WHERE id = :template_id
@@ -418,7 +416,6 @@ async def get_complete_workflow(
             id=workflow_result.id,
             nome=workflow_result.nome,
             descrizione=workflow_result.descrizione,
-            articolo_id=workflow_result.articolo_id,
             durata_stimata_giorni=workflow_result.durata_stimata_giorni,
             ordine=workflow_result.ordine,
             wkf_code=workflow_result.wkf_code,

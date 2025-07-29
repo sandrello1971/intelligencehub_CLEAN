@@ -19,6 +19,7 @@ from app.routes import articles
 from app.services.web_scraping import api_routes_working
 from app.routes import wiki
 from app.routes import rag_routes
+from app.routes import intellivoice_record
 
 # Database
 from app.database import create_tables

@@ -94,31 +94,52 @@ const MilestoneTemplateLibrary: React.FC = () => {
     }
   };
 
-  const handleCreateTemplate = async () => {
-    if (!formData.nome.trim()) {
-      setError('Nome template obbligatorio');
-      return;
-    }
 
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await apiClient.post('/admin/milestone-templates/', formData);
-      if (response.success) {
-        setSuccess('Milestone template creato con successo');
-        setShowCreateForm(false);
-        resetForm();
-        loadTemplates();
-      } else {
-        setError(response.error || 'Errore creazione template');
-      }
-    } catch (error) {
-      console.error('Errore creazione template:', error);
-      setError('Errore di connessione');
-    } finally {
-      setLoading(false);
+const handleCreateOrUpdateTemplate = async () => {
+  if (!formData.nome.trim()) {
+    setError('Nome template obbligatorio');
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+  try {
+    let response;
+    
+    if (editingTemplate) {
+      // UPDATE
+      response = await apiClient.put(`/admin/milestone-templates/${editingTemplate.id}`, formData);
+    } else {
+      // CREATE
+      response = await apiClient.post('/admin/milestone-templates/', formData);
     }
-  };
+    
+    if (response.success) {
+      setSuccess(editingTemplate ? 'Template aggiornato con successo' : 'Template creato con successo');
+      setShowCreateForm(false);
+      resetForm();
+      loadTemplates();
+    } else {
+      setError(response.error || 'Errore salvataggio template');
+    }
+  } catch (error) {
+    console.error('Errore salvataggio template:', error);
+    setError('Errore di connessione');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleEditTemplate = (template: any) => {
+  setEditingTemplate(template);
+  setFormData({
+    nome: template.nome,
+    descrizione: template.descrizione || '',
+    durata_stimata_giorni: template.durata_stimata_giorni,
+    categoria: template.categoria || 'standard',
+  });
+  setShowCreateForm(true);
+};
 
   const handleDeleteTemplate = async (templateId: number) => {
     if (!confirm('Sei sicuro di voler eliminare questo template?')) return;
@@ -382,7 +403,18 @@ const MilestoneTemplateLibrary: React.FC = () => {
                 >
                   Gestisci Task
                 </Button>
-                <Button
+
+<Button
+    size="small"
+    startIcon={<EditIcon />}
+    onClick={() => handleEditTemplate(template)}
+    disabled={loading}
+  >
+    Modifica
+  </Button>               
+
+
+ <Button
                   size="small"
                   startIcon={<RefreshIcon />}
                   onClick={() => handleRecalculateSLA(template.id)}
@@ -426,9 +458,12 @@ const MilestoneTemplateLibrary: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          {editingTemplate ? 'Modifica Template' : 'Nuovo Template Milestone'}
-        </DialogTitle>
+
+<DialogTitle>
+  {editingTemplate ? 'Modifica Template Milestone' : 'Nuovo Template Milestone'}
+</DialogTitle>
+
+
         <DialogContent>
           <Box sx={{ pt: 1 }}>
             <TextField
@@ -483,7 +518,7 @@ const MilestoneTemplateLibrary: React.FC = () => {
             Annulla
           </Button>
           <Button
-            onClick={handleCreateTemplate}
+            onClick={handleCreateOrUpdateTemplate}
             variant="contained"
             disabled={loading || !formData.nome.trim()}
           >

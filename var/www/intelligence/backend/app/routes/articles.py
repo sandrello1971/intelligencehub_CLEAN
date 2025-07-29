@@ -41,7 +41,7 @@ async def get_articles(
             END as responsabile_display_name
         FROM articoli a
         LEFT JOIN users u ON a.responsabile_user_id = u.id
-        WHERE 1=1
+        WHERE a.attivo = true
         """
         
         params = {}
@@ -230,3 +230,36 @@ async def update_article(article_id: int, article_data: dict, db: Session = Depe
     except Exception as e:
         db.rollback()
         return {"success": False, "detail": str(e)}
+@router.delete("/{article_id}")
+async def delete_article(
+    article_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Disattiva articolo (soft delete)
+    """
+    try:
+        articolo = db.query(Articolo).filter(Articolo.id == article_id).first()
+        
+        if not articolo:
+            raise HTTPException(status_code=404, detail="Articolo non trovato")
+        
+        articolo.attivo = False
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Articolo {articolo.codice} disattivato con successo"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Errore delete_article: {e}")
+        raise HTTPException(status_code=500, detail=f"Errore eliminazione: {str(e)}")
+
+@router.get("/health")
+async def health_check():
+    """Health check per le routes articoli"""
+    return {"status": "healthy", "service": "articles", "version": "1.0"}
