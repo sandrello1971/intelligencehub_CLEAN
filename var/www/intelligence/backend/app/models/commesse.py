@@ -53,7 +53,6 @@ class ModelloTicket(Base):
     descrizione = Column(Text)
     workflow_template_id = Column(Integer, ForeignKey("workflow_templates.id"))
     priority = Column(String(20), default="medium")
-    sla_hours = Column(Integer, default=24)
     auto_assign_rules = Column(JSONB, default=dict)
     template_description = Column(Text)
     is_active = Column(Boolean, default=True)

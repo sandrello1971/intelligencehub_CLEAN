@@ -30,7 +30,6 @@ async def create_ticket_template(
             descrizione=template_data.descrizione,
             workflow_template_id=template_data.workflow_template_id,
             priority=template_data.priority,
-            sla_hours=template_data.sla_hours,
             auto_assign_rules=template_data.auto_assign_rules or {},
             template_description=template_data.template_description,
             is_active=template_data.is_active

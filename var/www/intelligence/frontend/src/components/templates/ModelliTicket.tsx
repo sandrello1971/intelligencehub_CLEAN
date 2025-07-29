@@ -6,7 +6,6 @@ interface ModelloTicket {
   descrizione: string;
   workflow_template_id: number | null;
   priority: string;
-  sla_hours: number;
   is_active: boolean;
 }
 
@@ -67,7 +66,8 @@ const ModelliTicket: React.FC = () => {
           });
         }
         
-        setCalculatedSLA(totalHours > 0 ? totalHours : null);
+        const totalDays = Math.round((totalHours / 8) * 10) / 10;
+        setCalculatedSLA(totalDays > 0 ? totalDays : null);
       }
     } catch (error) {
       console.error('Errore calcolo SLA:', error);
@@ -132,7 +132,6 @@ const ModelliTicket: React.FC = () => {
         descrizione: formData.descrizione,
         workflow_template_id: formData.workflow_template_id ? parseInt(formData.workflow_template_id) : null,
         priority: formData.priority,
-        sla_hours: calculatedSLA || 24,
         is_active: true
       };
 
@@ -188,7 +187,6 @@ const ModelliTicket: React.FC = () => {
         descrizione: formData.descrizione,
         workflow_template_id: formData.workflow_template_id ? parseInt(formData.workflow_template_id) : null,
         priority: formData.priority,
-        sla_hours: calculatedSLA || editingModel.sla_hours
       };
 
       const response = await fetch(`/api/v1/templates/ticket-templates/${editingModel.id}`, {
@@ -349,7 +347,7 @@ const ModelliTicket: React.FC = () => {
                 </select>
                 {calculatedSLA && (
                   <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-                    SLA calcolato: {calculatedSLA} ore
+                    SLA calcolato: {calculatedSLA} giorni lavorativi
                   </p>
                 )}
               </div>
@@ -452,7 +450,7 @@ const ModelliTicket: React.FC = () => {
                 </select>
                 {calculatedSLA && (
                   <p style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
-                    SLA calcolato: {calculatedSLA} ore
+                    SLA calcolato: {calculatedSLA} giorni lavorativi
                   </p>
                 )}
               </div>
@@ -536,7 +534,6 @@ const ModelliTicket: React.FC = () => {
                 <div style={{ fontSize: '12px', color: '#555' }}>
                   <div><strong>Workflow:</strong> {getWorkflowNome(modello.workflow_template_id)}</div>
                   <div><strong>Priorità:</strong> {modello.priority}</div>
-                  <div><strong>SLA:</strong> {modello.sla_hours} ore</div>
                   <div><strong>Stato:</strong> {modello.is_active ? 'Attivo' : 'Disattivo'}</div>
                 </div>
                 

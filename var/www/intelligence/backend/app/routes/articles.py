@@ -29,6 +29,7 @@ async def get_articles(
             a.id, a.codice, a.nome, a.descrizione, a.tipo_prodotto, 
             a.partner_id, a.prezzo_base, a.durata_mesi, a.attivo,
             a.tipologia_servizio_id, a.responsabile_user_id,
+            a.modello_ticket_id,
             a.created_at, a.updated_at,
             u.username as responsabile_username, u.email as responsabile_email,
             CASE 
@@ -71,6 +72,7 @@ async def get_articles(
                 "attivo": row.attivo,
                 "tipologia_servizio_id": row.tipologia_servizio_id,
                 "responsabile_user_id": str(row.responsabile_user_id) if row.responsabile_user_id else None,
+                "modello_ticket_id": str(row.modello_ticket_id) if row.modello_ticket_id else None,
                 "created_at": row.created_at.isoformat() if row.created_at else None,
                 "updated_at": row.updated_at.isoformat() if row.updated_at else None,
                 # Info responsabile
@@ -198,6 +200,13 @@ async def update_article(article_id: int, article_data: dict, db: Session = Depe
         if "attivo" in article_data:
             update_fields.append("attivo = :attivo")
             params["attivo"] = article_data["attivo"]
+        
+        if "modello_ticket_id" in article_data:
+            if article_data["modello_ticket_id"]:
+                update_fields.append("modello_ticket_id = :modello_ticket_id")
+                params["modello_ticket_id"] = article_data["modello_ticket_id"]
+            else:
+                update_fields.append("modello_ticket_id = NULL")
         
         if not update_fields:
             return {"success": False, "detail": "Nessun campo da aggiornare"}

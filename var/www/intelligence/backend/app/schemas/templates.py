@@ -35,7 +35,6 @@ class TicketTemplateBase(BaseModel):
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
     priority: str = Field(default="medium", pattern="^(low|medium|high|urgent)$")
-    sla_hours: Optional[int] = None
     task_templates: Optional[List[int]] = []  # IDs dei task template
     articolo_id: Optional[int] = None
     workflow_template_id: Optional[int] = None
@@ -51,7 +50,6 @@ class TicketTemplateUpdate(BaseModel):
     descrizione: Optional[str] = None
     categoria: Optional[str] = None
     priority: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
-    sla_hours: Optional[int] = None
     task_templates: Optional[List[int]] = None
     articolo_id: Optional[int] = None
     workflow_template_id: Optional[int] = None

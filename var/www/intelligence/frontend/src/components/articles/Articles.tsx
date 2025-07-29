@@ -25,7 +25,6 @@ interface ModelloTicket {
   nome: string;
   descrizione: string;
   priority: string;
-  sla_hours: number;
   is_active: boolean;
 }
 
@@ -42,7 +41,6 @@ interface Article {
   tipologia_servizio_id?: number;
   partner_id?: number;
   responsabile_user_id?: string;
-  modello_ticket_id?: string;
   created_at: string;
   updated_at: string;
   // Dati relazionali
@@ -59,7 +57,6 @@ interface ArticleFormData {
   durata_mesi?: number;
   tipologia_servizio_id?: number;
   partner_id?: number;
-  modello_ticket_id?: string;
   responsabile_user_id?: string;
 }
 
@@ -158,6 +155,8 @@ const Articles: React.FC = () => {
     }
   };
 
+  // CRUD operations
+
   const fetchModelliTicket = async () => {
     try {
       const response = await fetch("/api/v1/templates/ticket-templates", {
@@ -175,8 +174,6 @@ const Articles: React.FC = () => {
       console.error("Error fetching modelli ticket:", error);
     }
   };
-
-  // CRUD operations
   const createArticle = async () => {
     try {
       const response = await fetch('/api/v1/articles/', {
@@ -269,7 +266,8 @@ const Articles: React.FC = () => {
       durata_mesi: article.durata_mesi,
       responsabile_user_id: article.responsabile_user_id || "",
       tipologia_servizio_id: article.tipologia_servizio_id,
-      partner_id: article.partner_id
+      partner_id: article.partner_id,
+      modello_ticket_id: article.modello_ticket_id,
     });
     setShowEditModal(true);
   };
@@ -597,6 +595,20 @@ const Articles: React.FC = () => {
                   </select>
                 </div>
               </div>
+                <div className="form-group">
+                  <label>Template Ticket</label>
+                  <select
+                    value={formData.modello_ticket_id || ""}
+                    onChange={(e) => setFormData({...formData, modello_ticket_id: e.target.value || undefined})}
+                  >
+                    <option value="">Nessun template...</option>
+                    {modelliTicket.map(modello => (
+                      <option key={modello.id} value={modello.id}>
+                        {modello.nome} - {modello.priority}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Prezzo Base (€)</label>
@@ -749,6 +761,20 @@ const Articles: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                <div className="form-group">
+                  <label>Template Ticket</label>
+                  <select
+                    value={formData.modello_ticket_id || ""}
+                    onChange={(e) => setFormData({...formData, modello_ticket_id: e.target.value || undefined})}
+                  >
+                    <option value="">Nessun template...</option>
+                    {modelliTicket.map(modello => (
+                      <option key={modello.id} value={modello.id}>
+                        {modello.nome} - {modello.priority}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 </div>
               </div>
             </div>
