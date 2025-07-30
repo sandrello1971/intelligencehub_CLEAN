@@ -33,13 +33,21 @@ interface TaskDetail {
   description: string;
   status: string;
   priority: string;
+  priorita: string;
   owner: string;
   owner_name: string;
   due_date: string | null;
   created_at: string;
-  ticket_id: string;
+  ticket_id: string | null;
   ticket_code: string;
   siblings: Array<{id: string, title: string, status: string}>;
+}
+
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
 }
 
 const TaskDetailPage: React.FC = () => {
@@ -51,6 +59,7 @@ const TaskDetailPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
   
   // Form state per editing
   const [formData, setFormData] = useState({
@@ -67,6 +76,30 @@ const TaskDetailPage: React.FC = () => {
     }
   }, [taskId]);
 
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const handleGoBack = () => {
+    if (task?.ticket_id) {
+      navigate(`/tickets/${task.ticket_id}`);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await fetch('/api/v1/users/');
+      if (response.ok) {
+        const userData = await response.json();
+        setUsers(userData);
+      }
+    } catch (error) {
+      console.error('Errore caricamento utenti:', error);
+    }
+  };
+
   const loadTaskDetail = async () => {
     try {
       setLoading(true);
@@ -77,71 +110,104 @@ const TaskDetailPage: React.FC = () => {
       }
       
       const taskData = await response.json();
-      const normalizedTaskData = {...taskData, priority: taskData.priority || taskData.priorita || "normale"}; setTask(normalizedTaskData);
+      
+      // Normalizza i dati per gestire sia 'priority' che 'priorita'
+      const normalizedTaskData = {
+        ...taskData,
+        priority: taskData.priority || taskData.priorita || 'normale'
+      };
+      
+      setTask(normalizedTaskData);
+      
+      // Inizializza form data
       setFormData({
-        title: taskData.title,
-        description: taskData.description || '',
-        status: taskData.status,
-        priority: taskData.priority,
-        owner: taskData.owner || ''
+        title: normalizedTaskData.title || '',
+        description: normalizedTaskData.description || '',
+        status: normalizedTaskData.status || '',
+        priority: normalizedTaskData.priority || '',
+        owner: normalizedTaskData.owner || ''
       });
-    } catch (err: any) {
-      setError(err.message || 'Errore nel caricamento del task');
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Task non trovato');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    if (!task) return;
+    
     try {
       setSaving(true);
-      const response = await fetch(`/api/v1/tasks/${taskId}`, {
+      const response = await fetch(`/api/v1/tasks/${task.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
       });
-
+      
       if (!response.ok) {
         throw new Error('Errore nel salvataggio');
       }
-
-      await loadTaskDetail(); // Ricarica i dati
+      
+      // Ricarica i dati aggiornati
+      await loadTaskDetail();
       setEditMode(false);
-    } catch (err: any) {
-      setError(err.message || 'Errore nel salvataggio');
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore nel salvataggio');
     } finally {
       setSaving(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase() || "") {
-      case 'todo': return 'primary';
-      case 'in_progress': return 'warning';
-      case 'completed': case 'chiuso': return 'success';
-      case 'cancelled': return 'error';
-      default: return 'default';
+  const getPriorityColor = (priority: string | undefined) => {
+    switch (priority?.toLowerCase()) {
+      case 'alta':
+      case 'critica':
+        return 'error';
+      case 'media':
+      case 'normale':
+        return 'warning';
+      case 'bassa':
+        return 'success';
+      default:
+        return 'default';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority?.toLowerCase() || "") {
-      case 'bassa': return 'success';
-      case 'normale': return 'primary';
-      case 'alta': return 'warning';
-      case 'critica': return 'error';
-      default: return 'default';
+  const getStatusColor = (status: string | undefined) => {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+      case 'completato':
+      case 'chiuso':
+        return 'success';
+      case 'in_progress':
+      case 'in corso':
+        return 'info';
+      case 'todo':
+      case 'da fare':
+      case 'aperto':
+        return 'warning';
+      case 'cancelled':
+      case 'annullato':
+        return 'error';
+      default:
+        return 'default';
     }
+  };
+
+  const getUserDisplayName = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user ? `${user.first_name} ${user.last_name}` : 'Non assegnato';
   };
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
+      <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
       </Container>
     );
   }
@@ -154,7 +220,7 @@ const TaskDetailPage: React.FC = () => {
         </Alert>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
+          onClick={handleGoBack}
         >
           Torna Indietro
         </Button>
@@ -169,7 +235,7 @@ const TaskDetailPage: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate(-1)}
+            onClick={handleGoBack}
             variant="outlined"
           >
             Indietro
@@ -179,16 +245,16 @@ const TaskDetailPage: React.FC = () => {
             Dettaglio Task
           </Typography>
         </Box>
-        <Typography variant="body1" color="textSecondary">
+        <Typography variant="subtitle1" color="textSecondary">
           Gestione del task operativo
         </Typography>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={4}>
         {/* Informazioni Principali */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6" fontWeight={600}>
                 Informazioni Task
               </Typography>
@@ -196,7 +262,9 @@ const TaskDetailPage: React.FC = () => {
                 {!editMode ? (
                   <Button
                     variant="contained"
+                    startIcon={<SaveIcon />}
                     onClick={() => setEditMode(true)}
+                    size="small"
                   >
                     Modifica
                   </Button>
@@ -207,13 +275,14 @@ const TaskDetailPage: React.FC = () => {
                       onClick={() => {
                         setEditMode(false);
                         setFormData({
-                          title: task.title,
+                          title: task.title || '',
                           description: task.description || '',
-                          status: task.status,
-                          priority: task.priority,
+                          status: task.status || '',
+                          priority: task.priority || '',
                           owner: task.owner || ''
                         });
                       }}
+                      size="small"
                     >
                       Annulla
                     </Button>
@@ -222,8 +291,9 @@ const TaskDetailPage: React.FC = () => {
                       startIcon={<SaveIcon />}
                       onClick={handleSave}
                       disabled={saving}
+                      size="small"
                     >
-                      {saving ? 'Salvando...' : 'Salva'}
+                      {saving ? 'Salvataggio...' : 'Salva'}
                     </Button>
                   </>
                 )}
@@ -232,61 +302,101 @@ const TaskDetailPage: React.FC = () => {
 
             <Grid container spacing={3}>
               <Grid item xs={12}>
-                <TextField
-                  label="Titolo"
-                  value={editMode ? formData.title : task.title}
-                  onChange={(e) => editMode && setFormData({...formData, title: e.target.value})}
-                  fullWidth
-                  disabled={!editMode}
-                  variant={editMode ? 'outlined' : 'filled'}
-                />
+                {editMode ? (
+                  <TextField
+                    fullWidth
+                    label="Titolo"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  />
+                ) : (
+                  <>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      Titolo
+                    </Typography>
+                    <Typography variant="h6" fontWeight={500}>
+                      {task.title}
+                    </Typography>
+                  </>
+                )}
               </Grid>
-              
+
               <Grid item xs={12}>
-                <TextField
-                  label="Descrizione"
-                  value={editMode ? formData.description : task.description}
-                  onChange={(e) => editMode && setFormData({...formData, description: e.target.value})}
-                  fullWidth
-                  multiline
-                  rows={4}
-                  disabled={!editMode}
-                  variant={editMode ? 'outlined' : 'filled'}
-                />
+                {editMode ? (
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    label="Descrizione"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  />
+                ) : (
+                  <>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      Descrizione
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {task.description || 'Nessuna descrizione disponibile'}
+                    </Typography>
+                  </>
+                )}
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Status"
-                  select
-                  value={editMode ? formData.status : task.status}
-                  onChange={(e) => editMode && setFormData({...formData, status: e.target.value})}
-                  fullWidth
-                  disabled={!editMode}
-                  variant={editMode ? 'outlined' : 'filled'}
-                >
-                  <MenuItem value="todo">Da Fare</MenuItem>
-                  <MenuItem value="in_progress">In Corso</MenuItem>
-                  <MenuItem value="completed">Completato</MenuItem>
-                  <MenuItem value="cancelled">Annullato</MenuItem>
-                </TextField>
+              <Grid item xs={6}>
+                {editMode ? (
+                  <TextField
+                    select
+                    fullWidth
+                    label="Status"
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                  >
+                    <MenuItem value="todo">Da Fare</MenuItem>
+                    <MenuItem value="in_progress">In Corso</MenuItem>
+                    <MenuItem value="completed">Completato</MenuItem>
+                    <MenuItem value="cancelled">Annullato</MenuItem>
+                  </TextField>
+                ) : (
+                  <>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      Status
+                    </Typography>
+                    <Chip
+                      label={task.status || 'Da Fare'}
+                      color={getStatusColor(task.status)}
+                      size="small"
+                    />
+                  </>
+                )}
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Priorità"
-                  select
-                  value={editMode ? formData.priority : task.priority}
-                  onChange={(e) => editMode && setFormData({...formData, priority: e.target.value})}
-                  fullWidth
-                  disabled={!editMode}
-                  variant={editMode ? 'outlined' : 'filled'}
-                >
-                  <MenuItem value="bassa">Bassa</MenuItem>
-                  <MenuItem value="normale">Normale</MenuItem>
-                  <MenuItem value="alta">Alta</MenuItem>
-                  <MenuItem value="critica">Critica</MenuItem>
-                </TextField>
+              <Grid item xs={6}>
+                {editMode ? (
+                  <TextField
+                    select
+                    fullWidth
+                    label="Priorità"
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                  >
+                    <MenuItem value="bassa">Bassa</MenuItem>
+                    <MenuItem value="normale">Normale</MenuItem>
+                    <MenuItem value="alta">Alta</MenuItem>
+                    <MenuItem value="critica">Critica</MenuItem>
+                  </TextField>
+                ) : (
+                  <>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      Priorità
+                    </Typography>
+                    <Chip
+                      label={task.priority || 'Normale'}
+                      color={getPriorityColor(task.priority)}
+                      size="small"
+                    />
+                  </>
+                )}
               </Grid>
             </Grid>
           </Paper>
@@ -294,51 +404,55 @@ const TaskDetailPage: React.FC = () => {
 
         {/* Sidebar */}
         <Grid item xs={12} md={4}>
-          {/* Status e Priorità */}
+          {/* Status */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
               Status
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Stato Attuale
-                </Typography>
-                <Chip 
-                  label={task.status} 
-                  color={getStatusColor(task.status) as any}
-                  variant="filled"
-                />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Priorità
-                </Typography>
-                <Chip 
-                  label={task.priority} 
-                  color={getPriorityColor(task.priority) as any}
-                  variant="outlined"
-                />
-              </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="body2">
+                <strong>Stato Attuale</strong>
+              </Typography>
+              <Chip
+                label={task.status || 'Da Fare'}
+                color={getStatusColor(task.status)}
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+              />
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                <strong>Priorità</strong>
+              </Typography>
+              <Chip
+                label={task.priority || 'Normale'}
+                color={getPriorityColor(task.priority)}
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+              />
             </Box>
           </Paper>
 
-          {/* Informazioni Ticket */}
+          {/* Ticket Collegato */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
               Ticket Collegato
             </Typography>
-            <Box 
-              sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'action.hover' }, p: 1, borderRadius: 1 }}
-              onClick={() => navigate(`/tickets/${task.ticket_id}`)}
-            >
-              <Typography variant="body2" color="primary.main" fontWeight={500}>
-                {task.ticket_code}
-              </Typography>
+            {task.ticket_id ? (
+              <Box 
+                sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'action.hover' }, p: 1, borderRadius: 1 }}
+                onClick={() => navigate(`/tickets/${task.ticket_id}`)}
+              >
+                <Typography variant="body2" color="primary.main" fontWeight={500}>
+                  {task.ticket_code || `Ticket ID: ${task.ticket_id}`}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Clicca per visualizzare il ticket
+                </Typography>
+              </Box>
+            ) : (
               <Typography variant="body2" color="textSecondary">
-                Clicca per visualizzare il ticket
+                Nessun ticket collegato
               </Typography>
-            </Box>
+            )}
           </Paper>
 
           {/* Owner */}
@@ -347,9 +461,27 @@ const TaskDetailPage: React.FC = () => {
               <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
               Owner
             </Typography>
-            <Typography variant="body2">
-              {task.owner_name || 'Non assegnato'}
-            </Typography>
+            {editMode ? (
+              <TextField
+                select
+                fullWidth
+                label="Owner"
+                value={formData.owner || ''}
+                onChange={(e) => setFormData({...formData, owner: e.target.value})}
+                size="small"
+              >
+                <MenuItem value="">Nessun assegnato</MenuItem>
+                {users.map((user) => (
+                  <MenuItem key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name} ({user.email})
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <Typography variant="body2">
+                {task.owner_name || getUserDisplayName(task.owner) || 'Non assegnato'}
+              </Typography>
+            )}
           </Paper>
 
           {/* Date */}
@@ -365,44 +497,6 @@ const TaskDetailPage: React.FC = () => {
             </Paper>
           )}
         </Grid>
-
-        {/* Task Correlati */}
-        {task.siblings && task.siblings.length > 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                <AssignmentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Altri Task del Ticket
-              </Typography>
-              <Grid container spacing={2}>
-                {task.siblings.map((sibling) => (
-                  <Grid item xs={12} sm={6} md={4} key={sibling.id}>
-                    <Card 
-                      variant="outlined" 
-                      sx={{ 
-                        cursor: 'pointer',
-                        '&:hover': { backgroundColor: 'action.hover' }
-                      }}
-                      onClick={() => navigate(`/tasks/${sibling.id}`)}
-                    >
-                      <CardContent sx={{ pb: 2 }}>
-                        <Typography variant="body2" fontWeight={500} noWrap>
-                          {sibling.title}
-                        </Typography>
-                        <Chip 
-                          label={sibling.status} 
-                          size="small" 
-                          color={getStatusColor(sibling.status) as any}
-                          sx={{ mt: 1 }}
-                        />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Paper>
-          </Grid>
-        )}
       </Grid>
     </Container>
   );

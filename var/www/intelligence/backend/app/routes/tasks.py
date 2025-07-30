@@ -63,15 +63,104 @@ def create_task(task_data: TaskCreate, db: Session = Depends(get_db)):
 @router.get("/{task_id}", response_model=TaskResponse)
 def get_task(task_id: str, db: Session = Depends(get_db)):
     """
-    Ottieni dettagli task con informazioni SLA
+    Ottieni dettagli task con ticket collegato - PRODUZIONE
     """
-    task = db.query(Task).filter(Task.id == task_id).first()
+    from sqlalchemy import text
     
-    if not task:
+    # Query SQL produzione che funziona
+    sql_query = text("""
+        SELECT 
+            t.id,
+            t.title,
+            t.description,
+            t.status,
+            t.priorita,
+            t.assigned_to,
+            t.due_date,
+            t.created_at,
+            t.milestone_id,
+            t.ticket_id as direct_ticket_id,
+            t.sla_giorni,
+            t.warning_giorni,
+            t.escalation_giorni,
+            t.sla_deadline,
+            t.warning_deadline,
+            t.escalation_deadline,
+            t.estimated_hours,
+            t.actual_hours,
+            t.checklist,
+            t.task_metadata,
+            t.parent_task_id,
+            t.company_id,
+            t.commessa_id,
+            
+            -- Milestone info
+            m.title as milestone_name,
+            
+            -- Ticket through milestone
+            tk_milestone.id as ticket_via_milestone_id,
+            tk_milestone.ticket_code as ticket_via_milestone_code,
+            
+            -- Ticket direct
+            tk_direct.id as ticket_direct_id,
+            tk_direct.ticket_code as ticket_direct_code
+            
+        FROM tasks t
+        LEFT JOIN milestones m ON t.milestone_id = m.id
+        LEFT JOIN tickets tk_milestone ON tk_milestone.milestone_id = t.milestone_id
+        LEFT JOIN tickets tk_direct ON tk_direct.id = t.ticket_id
+        WHERE t.id = :task_id
+    """)
+    
+    result = db.execute(sql_query, {"task_id": task_id}).fetchone()
+    
+    if not result:
         raise HTTPException(status_code=404, detail="Task non trovato")
     
+    # Determina ticket_id (priorità: diretto -> via milestone)
+    final_ticket_id = None
+    final_ticket_code = None
+    
+    if result.direct_ticket_id:
+        final_ticket_id = result.direct_ticket_id
+        final_ticket_code = result.ticket_direct_code
+    elif result.ticket_via_milestone_id:
+        final_ticket_id = result.ticket_via_milestone_id  
+        final_ticket_code = result.ticket_via_milestone_code
+    
+    # Costruisci oggetto Task con i campi corretti
+    task_data = {
+        "id": result.id,
+        "title": result.title,
+        "description": result.description,
+        "status": result.status,
+        "priorita": result.priorita,
+        "assigned_to": result.assigned_to,
+        "due_date": result.due_date,
+        "created_at": result.created_at,
+        "milestone_id": result.milestone_id,
+        "ticket_id": final_ticket_id,
+        "ticket_code": final_ticket_code,  # QUESTO È IL FIX PRINCIPALE
+        "sla_giorni": result.sla_giorni,
+        "warning_giorni": result.warning_giorni,
+        "escalation_giorni": result.escalation_giorni,
+        "sla_deadline": result.sla_deadline,
+        "warning_deadline": result.warning_deadline,
+        "escalation_deadline": result.escalation_deadline,
+        "estimated_hours": result.estimated_hours,
+        "actual_hours": result.actual_hours,
+        "checklist": result.checklist,
+        "task_metadata": result.task_metadata,
+        "parent_task_id": result.parent_task_id,
+        "company_id": result.company_id,
+        "commessa_id": result.commessa_id
+    }
+    
+    # Crea oggetto Task dal dict
+    from app.models.task import Task
+    task = Task(**{k: v for k, v in task_data.items() if v is not None})
+    
     return task
-
 @router.patch("/{task_id}", response_model=TaskResponse)
 def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends(get_db)):
     """

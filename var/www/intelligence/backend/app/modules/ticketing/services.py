@@ -22,51 +22,126 @@ class TicketingService:
     # ===== TASK MANAGEMENT =====
     
     def get_task_detail(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Get detailed task information with relationships"""
-        task = (
-            self.db.query(Task)
-            .options(
-                joinedload(Task.owner_ref),
-                joinedload(Task.predecessor_ref),
-                joinedload(Task.ticket).joinedload(Ticket.tasks)
+        """Get detailed task information with relationships - Production Version"""
+        from sqlalchemy import text
+        
+        # Query SQL diretta basata sui dati reali del database
+        sql_query = text("""
+            SELECT 
+                t.id,
+                t.title,
+                t.description,
+                t.status,
+                t.priorita,
+                t.assigned_to,
+                t.due_date,
+                t.created_at,
+                t.milestone_id,
+                t.ticket_id as direct_ticket_id,
+                
+                -- Milestone info
+                m.title as milestone_name,
+                m.due_date as milestone_due_date,
+                
+                -- Ticket through milestone
+                tk_milestone.id as ticket_via_milestone_id,
+                tk_milestone.ticket_code as ticket_via_milestone_code,
+                tk_milestone.title as ticket_via_milestone_title,
+                
+                -- Ticket direct (if exists)
+                tk_direct.id as ticket_direct_id,
+                tk_direct.ticket_code as ticket_direct_code,
+                tk_direct.title as ticket_direct_title,
+                
+                -- Owner info
+                u.name as owner_first_name,
+                u.surname as owner_last_name,
+                
+                -- Activity info for account manager
+                a.owner_name as account_manager
+                
+            FROM tasks t
+            LEFT JOIN milestones m ON t.milestone_id = m.id
+            LEFT JOIN tickets tk_milestone ON tk_milestone.milestone_id = t.milestone_id
+            LEFT JOIN tickets tk_direct ON tk_direct.id = t.ticket_id
+            LEFT JOIN users u ON u.id = t.assigned_to
+            LEFT JOIN activities a ON (
+                a.id = tk_milestone.activity_id OR 
+                a.id = tk_direct.activity_id
             )
-            .filter(Task.id == str(task_id))
-            .first()
-        )
+            WHERE t.id = :task_id
+            LIMIT 1
+        """)
         
-        if not task:
+        try:
+            result = self.db.execute(sql_query, {"task_id": str(task_id)}).fetchone()
+            
+            if not result:
+                return None
+            
+            # Determina quale ticket usare (priorità: diretto -> via milestone)
+            ticket_id = None
+            ticket_code = None
+            ticket_title = None
+            
+            if result.direct_ticket_id:
+                ticket_id = str(result.direct_ticket_id)
+                ticket_code = result.ticket_direct_code
+                ticket_title = result.ticket_direct_title
+            elif result.ticket_via_milestone_id:
+                ticket_id = str(result.ticket_via_milestone_id)
+                ticket_code = result.ticket_via_milestone_code
+                ticket_title = result.ticket_via_milestone_title
+            
+            # Owner name
+            owner_name = None
+            if result.owner_first_name and result.owner_last_name:
+                owner_name = f"{result.owner_first_name} {result.owner_last_name}"
+            
+            # Due date priority: task -> milestone
+            due_date = result.due_date or result.milestone_due_date
+            
+            return {
+                "id": result.id,
+                "title": result.title,
+                "description": result.description,
+                "status": result.status,
+                "priority": result.priorita,  
+                "priorita": result.priorita,  # Backward compatibility
+                
+                # Owner info
+                "owner": str(result.assigned_to) if result.assigned_to else None,
+                "owner_name": owner_name,
+                
+                # Milestone info
+                "milestone_id": str(result.milestone_id) if result.milestone_id else None,
+                "milestone_name": result.milestone_name,
+                
+                # Ticket info
+                "ticket_id": ticket_id,
+                "ticket_code": ticket_code,
+                "ticket_title": ticket_title,
+                
+                # Account Manager
+                "ticket_account": result.account_manager,
+                "account_manager": result.account_manager,
+                
+                # Dates
+                "due_date": due_date,
+                "created_at": result.created_at,
+                
+                # Legacy fields
+                "ticket_owner_name": None,
+                "predecessor_id": None,
+                "predecessor_title": None,
+                "closed_at": None,
+                "siblings": []
+            }
+            
+        except Exception as e:
+            # Log error in production
+            print(f"Error in get_task_detail: {e}")
             return None
-        
-        # Get owner details
-        owner_user = (
-            self.db.query(User).filter(User.id == str(task.owner)).first() 
-            if task.owner else None
-        )
-        
-        # Get due date from ticket if not set on task
-        due_date = task.due_date or (task.ticket.due_date if task.ticket else None)
-        
-        return {
-            "id": task.id,
-            "ticket_id": task.ticket_id,
-            "ticket_code": task.ticket.ticket_code if task.ticket else None,
-            "title": task.title,
-            "description": task.description,
-            "status": task.status,
-            "priority": task.priority,
-            "owner": task.owner,
-            "owner_name": f"{owner_user.name} {owner_user.surname}" if owner_user else None,
-            "due_date": due_date,
-            "predecessor_id": task.predecessor_id,
-            "predecessor_title": task.predecessor_ref.title if task.predecessor_ref else None,
-            "closed_at": task.closed_at,
-            "siblings": [
-                {"id": t.id, "title": t.title, "status": t.status}
-                for t in (task.ticket.tasks if task.ticket else [])
-                if t.id != task.id
-            ]
-        }
-    
     def update_task(self, task_id: int, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update task with business logic"""
         task = self.db.query(Task).filter(Task.id == str(task_id)).first()
