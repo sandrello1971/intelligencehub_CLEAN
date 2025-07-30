@@ -1,6 +1,6 @@
-
 // frontend/src/components/tickets/TicketHierarchyView.tsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -28,7 +28,9 @@ import {
   Task as TaskIcon,
   Add as AddIcon,
   Refresh as RefreshIcon,
-  AccountTree as TreeIcon
+  AccountTree as TreeIcon,
+  CheckCircle as CheckCircleIcon,
+  HourglassEmpty as HourglassEmptyIcon
 } from '@mui/icons-material';
 import { ticketApi, Company, TicketHierarchy } from '../../services/ticketApi';
 
@@ -37,6 +39,8 @@ interface TicketHierarchyViewProps {
 }
 
 const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigger }) => {
+  const navigate = useNavigate();
+  
   // State
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -45,6 +49,98 @@ const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigge
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [hierarchyLoading, setHierarchyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Funzione per completare un task
+  const handleTaskComplete = async (taskId: string) => {
+    try {
+      // TODO: Implementare API per completare task
+      console.log("Completing task:", taskId);
+      // await taskApi.updateTask(taskId, { status: "completed" });
+      loadHierarchy(); // Refresh
+    } catch (err) {
+      console.error("Errore completamento task:", err);
+    }
+  };
+
+  // Funzione per navigare al dettaglio task
+  const handleTaskClick = (taskId: string) => {
+    navigate(`/tasks/${taskId}`);
+  };
+
+  // Funzione per renderizzare i task di un ticket
+  const renderTasks = (tasks: any[] = [], ticketId: string) => {
+    if (!tasks || tasks.length === 0) {
+      return (
+        <Typography variant="body2" color="textSecondary" sx={{ fontStyle: "italic", pl: 2 }}>
+          Nessun task configurato
+        </Typography>
+      );
+    }
+
+    const allTasksCompleted = tasks.every(task => task.status === "chiuso" || task.status === "completed");
+
+    return (
+      <Box sx={{ pl: 2 }}>
+        {tasks.map((task) => {
+          const isCompleted = task.status === "chiuso" || task.status === "completed";
+          
+          return (
+            <Box key={task.id} display="flex" alignItems="center" gap={1} mb={1}>
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                sx={{ cursor: "pointer", flexGrow: 1 }}
+                onClick={() => handleTaskClick(task.id)}
+              >
+                {isCompleted ? (
+                  <CheckCircleIcon sx={{ color: "green" }} />
+                ) : (
+                  <HourglassEmptyIcon sx={{ color: "grey.600" }} />
+                )}
+                <Typography
+                  sx={{
+                    textDecoration: isCompleted ? "line-through" : "none",
+                    color: isCompleted ? "text.secondary" : "text.primary"
+                  }}
+                >
+                  📝 {task.title}
+                </Typography>
+                {task.owner_name && (
+                  <Chip label={task.owner_name} size="small" variant="outlined" />
+                )}
+              </Box>
+              {!isCompleted && (
+                <Button
+                  variant="outlined"
+                  color="success"
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTaskComplete(task.id);
+                  }}
+                >
+                  ✓ Completa
+                </Button>
+              )}
+            </Box>
+          );
+        })}
+        {allTasksCompleted && tasks.length > 0 && (
+          <Box sx={{ mt: 2, p: 2, backgroundColor: "success.light", borderRadius: 1 }}>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => console.log("Genera ticket kit per ticket:", ticketId)}
+              startIcon={<AddIcon />}
+            >
+              🚀 Genera Ticket Kit Commerciale
+            </Button>
+          </Box>
+        )}
+      </Box>
+    );
+  };
 
   // Load companies with search
   useEffect(() => {
@@ -268,7 +364,18 @@ const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigge
                 <Accordion key={ticket.id} sx={{ mb: 1 }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                      <Typography variant="subtitle1" fontWeight={500}>
+                      <Typography 
+                        variant="subtitle1" 
+                        fontWeight={500}
+                        sx={{ 
+                          cursor: "pointer", 
+                          "&:hover": { textDecoration: "underline", color: "primary.main" }
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/tickets/${ticket.id}`);
+                        }}
+                      >
                         {ticket.ticket_code} - {ticket.title}
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
@@ -305,24 +412,10 @@ const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigge
                           <strong>Creato:</strong> {ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : 'N/A'}
                         </Typography>
                       </Grid>
-                      {ticket.tasks && ticket.tasks.length > 0 && (
-                        <Grid item xs={12}>
-                          <Typography variant="body2" color="textSecondary" gutterBottom>
-                            Task ({ticket.tasks.length}):
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {ticket.tasks.map((task: any) => (
-                              <Chip 
-                                key={task.id}
-                                icon={<TaskIcon />}
-                                label={`${task.title} (${task.status})`}
-                                variant="outlined"
-                                size="small"
-                              />
-                            ))}
-                          </Box>
-                        </Grid>
-                      )}
+                      {/* Task del ticket */}
+                      <Grid item xs={12}>
+                        {renderTasks(ticket.tasks, ticket.id)}
+                      </Grid>
                     </Grid>
                   </AccordionDetails>
                 </Accordion>

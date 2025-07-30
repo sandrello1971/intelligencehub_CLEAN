@@ -107,22 +107,19 @@ class TicketResponse(BaseModel):
         from_attributes = True
 
 class TicketListItem(BaseModel):
-    id: int
+    id: str  # UUID come stringa
     ticket_code: Optional[str]
-    title: str
+    title: Optional[str]
     description: Optional[str]
-    priority: int
-    status: int
+    priority: Optional[str]  # Stringa, non int
+    status: Optional[str]  # Stringa, non int
     due_date: Optional[datetime]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
-    owner_id: Optional[int]
-    gtd_type: Optional[int]
-    assigned_to: Optional[int]
-    owner: Optional[str]
-    milestone_id: Optional[int]
-    customer_name: Optional[str]
-    gtd_generated: Optional[bool]
+    created_by: Optional[str]  # UUID come stringa
+    assigned_to: Optional[str]  # UUID come stringa
+    company_id: Optional[int]
+    milestone_id: Optional[str]  # UUID come stringa
     
     class Config:
         from_attributes = True

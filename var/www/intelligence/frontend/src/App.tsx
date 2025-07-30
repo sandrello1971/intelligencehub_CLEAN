@@ -27,6 +27,8 @@ import KitCommerciali from "./components/kit-commerciali/KitCommerciali";
 import CommercialTickets from "./pages/dashboard/CommercialTickets";
 import TasksGlobalManagement from "./components/workflow/TasksGlobalManagement";
 import WorkflowManagement from "./components/workflow/WorkflowManagement";
+import TaskDetailPage from "./pages/tasks/TaskDetailPage";
+import TicketDetailPage from "./pages/tickets/TicketDetailPage";
 import WikiPage from "./pages/wiki/WikiPage";
 import WikiPageViewer from "./components/wiki/WikiPageViewer";
 
@@ -56,6 +58,8 @@ function App() {
             <Route path="tasks-global" element={<TasksGlobalManagement />} />
             <Route path="workflow-management" element={<WorkflowManagement />} />
             <Route path="tasks" element={<TaskManagement />} />
+            <Route path="tasks/:taskId" element={<TaskDetailPage />} />
+            <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
             <Route path="modelli-ticket" element={<ModelliTicket />} />
             <Route path="chat" element={<IntelliChat />} />
             <Route path="documents" element={<DocumentsRAG />} />
@@ -77,3 +81,5 @@ export default App;
 
 // Importa il componente Workflow Management
 import WorkflowManagement from "./components/workflow/WorkflowManagement";
+import TaskDetailPage from "./pages/tasks/TaskDetailPage";
+import TicketDetailPage from "./pages/tickets/TicketDetailPage";

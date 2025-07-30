@@ -4,7 +4,7 @@ API endpoints for ticket management
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from app.core.database import get_db
 from app.routes.auth import get_current_user_dep
@@ -19,8 +19,8 @@ from app.modules.ticketing.schemas import (
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
-@router.get("/{ticket_id}", response_model=TicketResponse)
-def get_ticket_detail(ticket_id: int, db: Session = Depends(get_db)):
+@router.get("/{ticket_id}", response_model=Dict)
+def get_ticket_detail(ticket_id: str, db: Session = Depends(get_db)):
     """Get detailed information about a specific ticket"""
     service = TicketingService(db)
     ticket = service.get_ticket_detail(ticket_id)
@@ -54,8 +54,8 @@ def list_tickets(
     return tickets
 
 
-@router.patch("/{ticket_id}", response_model=TicketResponse)
-def update_ticket(ticket_id: int, ticket_update: TicketUpdate, db: Session = Depends(get_db)):
+@router.patch("/{ticket_id}", response_model=Dict)
+def update_ticket(ticket_id: str, ticket_update: TicketUpdate, db: Session = Depends(get_db)):
     """Update a ticket"""
     service = TicketingService(db)
     
@@ -71,7 +71,7 @@ def update_ticket(ticket_id: int, ticket_update: TicketUpdate, db: Session = Dep
 
 @router.post("/{ticket_id}/generate-all")
 def generate_opportunities_from_ticket(
-    ticket_id: int, 
+    ticket_id: str, 
     payload: ServicesInput, 
     db: Session = Depends(get_db)
 ):
@@ -93,7 +93,7 @@ def generate_opportunities_from_ticket(
 
 
 @router.post("/{ticket_id}/auto-generate-from-services")
-def auto_generate_from_services(ticket_id: int, db: Session = Depends(get_db)):
+def auto_generate_from_services(ticket_id: str, db: Session = Depends(get_db)):
     """Auto-generate sub-tickets from detected services"""
     service = TicketingService(db)
     ticket = service.get_ticket_detail(ticket_id)
@@ -116,7 +116,7 @@ def auto_generate_from_services(ticket_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{ticket_id}/generate-crm-opportunities")
-def generate_crm_opportunities(ticket_id: int, db: Session = Depends(get_db)):
+def generate_crm_opportunities(ticket_id: str, db: Session = Depends(get_db)):
     """Generate CRM opportunities from closed ticket"""
     service = TicketingService(db)
     ticket = service.get_ticket_detail(ticket_id)
@@ -156,7 +156,7 @@ def auto_close_completed_tickets(db: Session = Depends(get_db)):
 def create_commercial_commessa(
     request: CommercialCommessaRequest,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_dep)  # Assumendo che esista
+    current_user = Depends(get_current_user_dep)
 ):
     """Crea una nuova commessa commerciale da kit"""
     
@@ -178,6 +178,7 @@ def create_commercial_commessa(
     
     return result
 
+
 @router.get("/commercial/hierarchy/{company_id}")
 def get_commercial_hierarchy(
     company_id: int,
@@ -188,7 +189,8 @@ def get_commercial_hierarchy(
     from app.models.company import Company
     from app.models.commesse import Commessa
     from app.models.ticket import Ticket
-    # Trova l azienda
+    
+    # Trova l'azienda
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Azienda non trovata")
@@ -203,20 +205,28 @@ def get_commercial_hierarchy(
     tickets_padre = []
     tickets_figli = []
     
-    for commessa in commesse:
-        # Trova ticket associati alla commessa (da implementare relazione)
-        # Per ora cerchiamo per customer_name
-        tickets = db.query(Ticket).filter(
-            Ticket.company_id == company_id
-        ).all()
+    # Trova tutti i ticket per questa azienda
+    tickets = db.query(Ticket).filter(
+        Ticket.company_id == company_id
+    ).all()
+    
+    for ticket in tickets:
+        ticket_detail = service.get_ticket_detail(str(ticket.id))
+        if ticket_detail and company:
+            ticket_detail["company_name"] = company.nome
         
-        for ticket in tickets:
-            ticket_detail = service.get_ticket_detail(ticket.id)
-            if ticket_detail:
-                if "[COMMERCIALE]" in ticket.title:
-                    tickets_padre.append(ticket_detail)
-                else:
-                    tickets_figli.append(ticket_detail)
+        if ticket_detail:
+            # Logica per distinguere ticket padre da figli
+            # Ticket padre: quelli con [COMMERCIALE] nel titolo o ticket_code che inizia con TCK-SOF
+            is_padre = (
+                "[COMMERCIALE]" in ticket.title or 
+                (ticket.ticket_code and ticket.ticket_code.startswith("TCK-SOF"))
+            )
+            
+            if is_padre:
+                tickets_padre.append(ticket_detail)
+            else:
+                tickets_figli.append(ticket_detail)
     
     return {
         "cliente": company.nome,
@@ -230,3 +240,13 @@ def get_commercial_hierarchy(
         }
     }
 
+@router.get("/tasks/{task_id}", response_model=Dict)
+def get_task_detail_endpoint(task_id: str, db: Session = Depends(get_db)):
+    """Get detailed information about a specific task"""
+    service = TicketingService(db)
+    task = service.get_task_detail(task_id)
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task non trovato")
+    
+    return task

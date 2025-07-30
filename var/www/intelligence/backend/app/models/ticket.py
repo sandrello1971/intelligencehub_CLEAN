@@ -7,29 +7,25 @@ import uuid
 
 class Ticket(Base):
     __tablename__ = "tickets"
-
+    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title = Column(String(255), nullable=False)
-    description = Column(String(500))
-    ticket_code = Column(String(50))
-    status = Column(String(50))
-    priority = Column(String(50))
-    due_date = Column(DateTime)
-    due_date = Column(DateTime)
-
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     company_id = Column(BigInteger, ForeignKey("companies.id"))
-
+    title = Column(String)
+    description = Column(String)
+    status = Column(String)
+    priority = Column(String)
     created_at = Column(DateTime)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    opportunity_id = Column(UUID(as_uuid=True))
+    modello_ticket_id = Column(UUID(as_uuid=True))
+    milestone_id = Column(UUID(as_uuid=True))
+    sla_deadline = Column(DateTime)
+    ticket_ticket_metadata = Column("metadata", String)  # JSONB in PostgreSQL
+    commessa_id = Column(UUID(as_uuid=True))
+    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    activity_id = Column(BigInteger)
+    articolo_id = Column(BigInteger)
+    workflow_milestone_id = Column(BigInteger)
+    ticket_code = Column(String(50))
+    due_date = Column(DateTime)
     updated_at = Column(DateTime)
-
-    # Relazioni
-#    creator = relationship("User", back_populates="created_tickets", foreign_keys=[created_by])
-#    assigned_user = relationship("User", back_populates="assigned_tickets", foreign_keys=[assigned_to])
-#    company = relationship("Company", back_populates="tickets")
-
-    # Relazioni verso User (User è già definito quando Ticket viene caricato)
-#    creator = relationship("User", foreign_keys=[created_by], back_populates="created_tickets")
-#    assigned_user = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_tickets")
-#    company = relationship("Company")

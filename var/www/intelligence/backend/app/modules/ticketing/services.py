@@ -21,7 +21,7 @@ class TicketingService:
     
     # ===== TASK MANAGEMENT =====
     
-    def get_task_detail(self, task_id: int) -> Optional[Dict[str, Any]]:
+    def get_task_detail(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed task information with relationships"""
         task = (
             self.db.query(Task)
@@ -30,7 +30,7 @@ class TicketingService:
                 joinedload(Task.predecessor_ref),
                 joinedload(Task.ticket).joinedload(Ticket.tasks)
             )
-            .filter(Task.id == task_id)
+            .filter(Task.id == str(task_id))
             .first()
         )
         
@@ -69,7 +69,7 @@ class TicketingService:
     
     def update_task(self, task_id: int, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update task with business logic"""
-        task = self.db.query(Task).filter(Task.id == task_id).first()
+        task = self.db.query(Task).filter(Task.id == str(task_id)).first()
         if not task:
             return None
         
@@ -130,30 +130,28 @@ class TicketingService:
         
         return [
             {
-                "id": t.id,
+                "id": str(t.id),
                 "title": t.title,
                 "description": t.description,
-                "status": t.status,
                 "priority": t.priority,
-                "ticket_id": t.ticket_id,
-                "owner": t.owner,
-                "predecessor_id": t.predecessor_id,
-                "milestone_id": t.milestone_id,
-                "closed_at": t.closed_at
+                "status": t.status,
+                "due_date": t.due_date,
+                "created_at": t.created_at,
+                "updated_at": t.updated_at,
+                "created_by": str(t.created_by) if t.created_by else None,
+                "assigned_to": str(t.assigned_to) if t.assigned_to else None,
+                "company_id": t.company_id,
+                "milestone_id": str(t.milestone_id) if t.milestone_id else None
             }
             for t in tasks
         ]
     
     # ===== TICKET MANAGEMENT =====
     
-    def get_ticket_detail(self, ticket_id: int) -> Optional[Dict[str, Any]]:
-        """Get detailed ticket information with tasks and activities"""
+    def get_ticket_detail(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed ticket information with tasks"""
         ticket = (
             self.db.query(Ticket)
-            .options(
-                joinedload(Ticket.tasks),
-                joinedload(Ticket.activity)
-            )
             .filter(Ticket.id == ticket_id)
             .first()
         )
@@ -161,35 +159,47 @@ class TicketingService:
         if not ticket:
             return None
         
-        # Get account name from activity
-        account_name = (
-            ticket.activity.owner_name 
-            if ticket.activity and ticket.activity.owner_name 
-            else None
-        )
+        # Get tasks tramite milestone
+        tasks = []
+        if ticket.milestone_id:
+            tasks = (
+                self.db.query(Task)
+                .filter(Task.milestone_id == ticket.milestone_id)
+                .all()
+            )
         
         # Enrich tasks with owner information
         enriched_tasks = []
-        for task in (ticket.tasks or []):
-            owner = self.db.query(User).filter(User.id == str(task.owner)).first() if task.owner else None
+        for task in tasks:
+            owner = self.db.query(User).filter(User.id == task.assigned_to).first() if task.assigned_to else None
             owner_name = f"{owner.name} {owner.surname}" if owner else None
             
             enriched_tasks.append({
-                "id": task.id,
+                "id": str(task.id),
                 "title": task.title,
+                "description": task.description,
                 "status": task.status,
-                "priority": task.priority,
-                "owner": task.owner,
+                "priority": getattr(task, "priorita", "normale"),
+                "assigned_to": str(task.assigned_to) if task.assigned_to else None,
                 "owner_name": owner_name,
-                "customer_name": ticket.customer_name,
-                "closed_at": task.closed_at
+                "due_date": task.due_date,
+                "created_at": task.created_at
             })
         
-        # Get detected services from activity
-        detected_services = ticket.activity.detected_services if ticket.activity else []
+        # Get owner details
+        owner_user = None
+        if ticket.created_by:
+            owner_user = self.db.query(User).filter(User.id == ticket.created_by).first()
+        
+        # Get company details for customer name
+        customer_name = None
+        if ticket.company_id:
+            from app.models.company import Company
+            company = self.db.query(Company).filter(Company.id == ticket.company_id).first()
+            customer_name = company.nome if company else None
         
         return {
-            "id": ticket.id,
+            "id": str(ticket.id),
             "ticket_code": ticket.ticket_code,
             "title": ticket.title,
             "description": ticket.description,
@@ -198,25 +208,19 @@ class TicketingService:
             "due_date": ticket.due_date,
             "created_at": ticket.created_at,
             "updated_at": ticket.updated_at,
-            "owner_id": ticket.owner_id,
-            "gtd_type": ticket.gtd_type,
-            "assigned_to": ticket.assigned_to,
-            "owner": ticket.owner,
-            "account": account_name,
-            "milestone_id": ticket.milestone_id,
-            "customer_name": ticket.customer_name,
-            "gtd_generated": ticket.gtd_generated,
-            "detected_services": detected_services,
-            "activity": {
-                "id": ticket.activity.id if ticket.activity else None,
-                "description": ticket.activity.description if ticket.activity else None,
-                "detected_services": detected_services
-            },
+            "created_by": str(ticket.created_by) if ticket.created_by else None,
+            "assigned_to": str(ticket.assigned_to) if ticket.assigned_to else None,
+            "company_id": ticket.company_id,
+            "milestone_id": str(ticket.milestone_id) if ticket.milestone_id else None,
+            "workflow_milestone_id": ticket.workflow_milestone_id,
+            "activity_id": ticket.activity_id,
+            "owner": f"{owner_user.name} {owner_user.surname}" if owner_user else "Non assegnato",
+            "customer_name": customer_name or "N/A",
             "tasks": enriched_tasks,
             "tasks_stats": {
                 "total": len(enriched_tasks),
-                "completed": len([t for t in enriched_tasks if t["status"] == "chiuso"]),
-                "pending": len([t for t in enriched_tasks if t["status"] != "chiuso"])
+                "completed": len([t for t in enriched_tasks if t["status"] in ["completed", "chiuso"]]),
+                "pending": len([t for t in enriched_tasks if t["status"] not in ["completed", "chiuso"]])
             }
         }
     
@@ -241,7 +245,7 @@ class TicketingService:
         
         return [
             {
-                "id": t.id,
+                "id": str(t.id),
                 "ticket_code": t.ticket_code,
                 "title": t.title,
                 "description": t.description,
@@ -250,13 +254,10 @@ class TicketingService:
                 "due_date": t.due_date,
                 "created_at": t.created_at,
                 "updated_at": t.updated_at,
-                "owner_id": t.owner_id,
-                "gtd_type": t.gtd_type,
-                "assigned_to": t.assigned_to,
-                "owner": t.owner,
-                "milestone_id": t.milestone_id,
-                "customer_name": t.customer_name,
-                "gtd_generated": t.gtd_generated,
+                "created_by": str(t.created_by) if t.created_by else None,
+                "assigned_to": str(t.assigned_to) if t.assigned_to else None,
+                "company_id": t.company_id,
+                "milestone_id": str(t.milestone_id) if t.milestone_id else None
             }
             for t in tickets
         ]
@@ -307,7 +308,6 @@ class TicketingService:
             "timestamp": datetime.utcnow().isoformat()
         }
 
-
     # ===== COMMERCIAL METHODS =====
     
     def create_commercial_commessa(self, request_data: Dict[str, Any], current_user_id: str) -> Dict[str, Any]:
@@ -346,7 +346,7 @@ class TicketingService:
                 name=f"{kit.nome} - {company.nome}",
                 descrizione=f"Commessa generata da kit '{kit.nome}'\n\nNote: {notes}",
                 client_id=company_id,
-                owner_id=current_user_id,
+                created_by=current_user_id,
                 status="active"
             )
             
@@ -393,4 +393,3 @@ class TicketingService:
         except Exception as e:
             self.db.rollback()
             return {"success": False, "error": str(e)}
-

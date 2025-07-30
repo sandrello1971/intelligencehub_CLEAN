@@ -209,6 +209,7 @@ class CRMWorkflowSync:
             "estimated_hours": ore_stimate,
             "sla_hours": ore_stimate,
             "created_at": datetime.utcnow(),
+                "created_by": owner_user_id
             "task_template_id": task_template.get("id"),
             "priorita": "normale"
         })
@@ -272,6 +273,29 @@ class CRMWorkflowSync:
                 company_id = self.find_company_by_crm_id(activity["companyId"])
             
             # Prepara dati ticket
+            
+            # Trova responsabile dal kit commerciale
+            owner_user_id = None
+            try:
+                from app.models.kit_commerciali import KitCommerciale, KitArticolo
+                from app.models.articoli import Articolo
+                
+                kit = self.db.query(KitCommerciale).filter(
+                    KitCommerciale.nome.ilike(f"%{kit_name}%")
+                ).first()
+                
+                if kit:
+                    # Prendi il primo articolo con responsabile
+                    kit_articolo = self.db.query(KitArticolo).join(Articolo).filter(
+                        KitArticolo.kit_commerciale_id == kit.id,
+                        Articolo.responsabile_user_id.isnot(None)
+                    ).first()
+                    
+                    if kit_articolo and kit_articolo.articolo:
+                        owner_user_id = kit_articolo.articolo.responsabile_user_id
+                        
+            except Exception as e:
+                logger.warning(f"Could not find kit owner: {e}")
             ticket_id = str(uuid4())
             title = f"Richiesta Commerciale - {kit_name}"
             if activity.get("subject"):
@@ -302,11 +326,13 @@ class CRMWorkflowSync:
             # 1. Crea ticket padre
             insert_ticket_query = text("""
                 INSERT INTO tickets (
-                    id, title, description, status, priority,
-                    workflow_milestone_id, metadata, created_at
+                    id, title, description, status, priority, company_id,
+                    workflow_milestone_id, modello_ticket_id, metadata, 
+                    created_at, created_by
                 ) VALUES (
-                    :id, :title, :description, :status, :priority,
-                    :workflow_milestone_id, :metadata, :created_at
+                    :id, :title, :description, :status, :priority, :company_id,
+                    :workflow_milestone_id, :modello_ticket_id, :metadata, 
+                    :created_at, :created_by
                 )
             """)
             
@@ -320,7 +346,8 @@ class CRMWorkflowSync:
                 "modello_ticket_id": DEFAULT_TICKET_TEMPLATE_ID,
                 "workflow_milestone_id": DEFAULT_MILESTONE_ID,
                 "metadata": json.dumps(metadata),
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
+                "created_by": owner_user_id
             })
             
             logger.info(f"✅ Created ticket {ticket_id} for kit '{kit_name}'")
