@@ -11,12 +11,18 @@ class Ticket(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
     description = Column(String(500))
+    ticket_code = Column(String(50))
+    status = Column(String(50))
+    priority = Column(String(50))
+    due_date = Column(DateTime)
+    due_date = Column(DateTime)
 
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     company_id = Column(BigInteger, ForeignKey("companies.id"))
 
     created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
     # Relazioni
 #    creator = relationship("User", back_populates="created_tickets", foreign_keys=[created_by])

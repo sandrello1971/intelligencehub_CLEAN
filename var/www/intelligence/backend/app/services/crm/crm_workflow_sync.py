@@ -35,6 +35,7 @@ INTELLIGENCE_SUBTYPE_ID = 63705
 # Configurazione workflow
 DEFAULT_TICKET_TEMPLATE_ID = "7a324655-f0b4-4166-b4ae-ccc6a0d1c738"  # Ticket Start
 DEFAULT_WORKFLOW_TEMPLATE_ID = 1  # Workflow start
+DEFAULT_MILESTONE_ID = 3  # invio incarico in firma  # Workflow start
 
 class CRMWorkflowSync:
     def __init__(self):
@@ -112,16 +113,24 @@ class CRMWorkflowSync:
         return None
     
     def activity_already_processed(self, activity_id: int) -> bool:
-        """Verifica se attività già processata"""
-        query = text("SELECT id FROM tickets WHERE activity_id = :activity_id")
-        result = self.db.execute(query, {"activity_id": activity_id}).fetchone()
+        """Verifica se attività già processata usando metadata"""
+        query = text("""
+            SELECT id FROM tickets 
+            WHERE metadata::jsonb ->> 'crm_activity_id' = :activity_id
+        """)
+        result = self.db.execute(query, {"activity_id": str(activity_id)}).fetchone()
         return result is not None
     
     def find_company_by_crm_id(self, crm_company_id: int) -> Optional[int]:
         """Trova company tramite CRM ID"""
         query = text("SELECT id FROM companies WHERE id = :company_id")
         result = self.db.execute(query, {"company_id": crm_company_id}).fetchone()
-        return result.id if result else None
+        if result:
+            logger.info(f"✅ Found company {result.id} for CRM ID {crm_company_id}")
+            return result.id
+        else:
+            logger.warning(f"⚠️ Company not found for CRM ID {crm_company_id}")
+            return None
     
     def create_milestone_instance(self, ticket_id: str, milestone_template: Dict) -> str:
         """Crea istanza di milestone per il ticket"""
@@ -132,24 +141,38 @@ class CRMWorkflowSync:
         
         insert_query = text("""
             INSERT INTO milestones (
-                id, ticket_id, nome, descrizione, ordine, status,
-                sla_deadline, created_at, workflow_milestone_id
+                id, title, descrizione, stato, 
+                data_inizio, data_fine_prevista, sla_hours,
+                workflow_milestone_id, created_by
             ) VALUES (
-                :id, :ticket_id, :nome, :descrizione, :ordine, :status,
-                :sla_deadline, :created_at, :workflow_milestone_id
+                :id, :title, :descrizione, :stato,
+                :data_inizio, :data_fine_prevista, :sla_hours,
+                :workflow_milestone_id, :created_by
             )
         """)
         
         self.db.execute(insert_query, {
             "id": milestone_id,
-            "ticket_id": ticket_id,
-            "nome": milestone_template["nome"],
+            "title": milestone_template["nome"],
             "descrizione": milestone_template["descrizione"],
-            "ordine": milestone_template["ordine"],
-            "status": "aperto",
-            "sla_deadline": sla_deadline,
-            "created_at": datetime.utcnow(),
-            "workflow_milestone_id": milestone_template["id"]
+            "stato": "pianificata",
+            "data_inizio": datetime.utcnow(),
+            "data_fine_prevista": sla_deadline,
+            "sla_hours": 168,  # 7 giorni * 24 ore
+            "workflow_milestone_id": milestone_template["id"],
+            "created_by": "crm_sync"
+        })
+        
+        # Ora aggiorna il ticket per collegarlo alla milestone
+        update_ticket_query = text("""
+            UPDATE tickets 
+            SET milestone_id = :milestone_id 
+            WHERE id = :ticket_id
+        """)
+        
+        self.db.execute(update_ticket_query, {
+            "milestone_id": milestone_id,
+            "ticket_id": ticket_id
         })
         
         logger.info(f"✅ Created milestone instance: {milestone_template['nome']}")
@@ -166,24 +189,28 @@ class CRMWorkflowSync:
         
         insert_query = text("""
             INSERT INTO tasks (
-                id, milestone_id, nome, descrizione, ordine, status,
-                sla_deadline, durata_stimata_ore, created_at
+                id, milestone_id, title, description, status,
+                sla_deadline, estimated_hours, sla_hours, created_at,
+                task_template_id, priorita
             ) VALUES (
-                :id, :milestone_id, :nome, :descrizione, :ordine, :status,
-                :sla_deadline, :durata_stimata_ore, :created_at
+                :id, :milestone_id, :title, :description, :status,
+                :sla_deadline, :estimated_hours, :sla_hours, :created_at,
+                :task_template_id, :priorita
             )
         """)
         
         self.db.execute(insert_query, {
             "id": task_id,
             "milestone_id": milestone_id,
-            "nome": task_template["nome"],
-            "descrizione": task_template["descrizione"],
-            "ordine": task_template["ordine"],
-            "status": "da_iniziare",
+            "title": task_template["nome"],
+            "description": task_template["descrizione"],
+            "status": "todo",  # Usa 'todo' invece di 'da_iniziare'
             "sla_deadline": sla_deadline,
-            "durata_stimata_ore": ore_stimate,
-            "created_at": datetime.utcnow()
+            "estimated_hours": ore_stimate,
+            "sla_hours": ore_stimate,
+            "created_at": datetime.utcnow(),
+            "task_template_id": task_template.get("id"),
+            "priorita": "normale"
         })
         
         logger.info(f"   ✅ Created task: {task_template['nome']} ({ore_stimate}h)")
@@ -266,7 +293,6 @@ class CRMWorkflowSync:
             # Metadata con info kit
             metadata = {
                 "kit_commerciale": kit_name,
-                "crm_activity_id": activity_id,
                 "crm_company_id": activity.get("companyId"),
                 "workflow_instanziato": True,
                 "sync_source": "CRM_INTELLIGENCE",
@@ -277,11 +303,9 @@ class CRMWorkflowSync:
             insert_ticket_query = text("""
                 INSERT INTO tickets (
                     id, title, description, status, priority,
-                    company_id, modello_ticket_id, activity_id,
                     workflow_milestone_id, metadata, created_at
                 ) VALUES (
                     :id, :title, :description, :status, :priority,
-                    :company_id, :modello_ticket_id, :activity_id,
                     :workflow_milestone_id, :metadata, :created_at
                 )
             """)
@@ -294,8 +318,7 @@ class CRMWorkflowSync:
                 "priority": "alta",
                 "company_id": company_id,
                 "modello_ticket_id": DEFAULT_TICKET_TEMPLATE_ID,
-                "activity_id": activity_id,
-                "workflow_milestone_id": DEFAULT_WORKFLOW_TEMPLATE_ID,
+                "workflow_milestone_id": DEFAULT_MILESTONE_ID,
                 "metadata": json.dumps(metadata),
                 "created_at": datetime.utcnow()
             })
