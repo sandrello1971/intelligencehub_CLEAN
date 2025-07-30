@@ -197,61 +197,6 @@ async def update_milestone_template(
 
 
 
-@router.get("/{template_id}/tasks")
-async def get_milestone_template_tasks(
-    template_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_dep)
-):
-    """Recupera task associati a milestone template"""
-    try:
-        # Verifica che la milestone esista
-        template_query = """
-        SELECT id, nome FROM workflow_milestones wm 
-        WHERE id = :template_id AND workflow_template_id IS NULL
-        """
-        template = db.execute(text(template_query), {"template_id": template_id}).fetchone()
-        
-        if not template:
-            raise HTTPException(status_code=404, detail="Milestone template non trovato")
-        
-        # Recupera task associati
-        tasks_query = """
-        SELECT id, nome, descrizione, ordine, durata_stimata_ore as sla_hours,
-               obbligatorio as is_required, tipo_task as priorita
-        FROM milestone_task_templates
-        WHERE milestone_id = :template_id
-        ORDER BY ordine, nome
-        """
-        
-        tasks_result = db.execute(text(tasks_query), {"template_id": template_id}).fetchall()
-        
-        tasks = []
-        total_sla_hours = 0
-        
-        for task in tasks_result:
-            task_data = {
-                "id": task.id,
-                "nome": task.nome,
-                "descrizione": task.descrizione,
-                "ordine": task.ordine,
-                "sla_hours": task.sla_hours or 8,
-                "is_required": task.is_required,
-                "priorita": task.priorita or "standard"
-            }
-            tasks.append(task_data)
-            total_sla_hours += task.sla_hours or 8
-        
-        # Calcola SLA milestone (arrotondato per eccesso)
-        milestone_sla_giorni = max(1, (total_sla_hours + 7) // 8)
-        
-        return {
-            "milestone": {"id": template.id, "nome": template.nome},
-            "tasks": tasks,
-            "milestone_sla_giorni": milestone_sla_giorni,
-            "total_sla_hours": total_sla_hours
-        }
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
 
@@ -326,48 +271,6 @@ async def remove_task_from_milestone(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
 
-@router.get("/{template_id}/tasks")
-async def get_milestone_tasks(
-    template_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_dep)
-):
-    """Recupera task della milestone ordinati per ordine"""
-    try:
-        query = """
-        SELECT id, milestone_id, nome, descrizione, ordine, durata_stimata_ore,
-               ruolo_responsabile, obbligatorio, tipo_task, created_at
-        FROM milestone_task_templates
-        WHERE milestone_id = :milestone_id
-        ORDER BY ordine, nome
-        """
-        
-        result = db.execute(text(query), {"milestone_id": template_id}).fetchall()
-        
-        tasks = []
-        for row in result:
-            tasks.append({
-                "id": row.id,
-                "milestone_id": row.milestone_id,
-                "nome": row.nome,
-                "descrizione": row.descrizione or "",
-                "ordine": row.ordine,
-                "durata_stimata_ore": row.durata_stimata_ore or 0,
-                "ruolo_responsabile": row.ruolo_responsabile or "",
-                "obbligatorio": row.obbligatorio,
-                "tipo_task": row.tipo_task,
-                "created_at": str(row.created_at)
-            })
-        
-        total_hours = sum(task["durata_stimata_ore"] for task in tasks)
-        milestone_sla_giorni = max(1, (total_hours + 7) // 8)
-        
-        return {
-            "tasks": tasks,
-            "milestone_sla_giorni": milestone_sla_giorni,
-            "total_hours": total_hours
-        }
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
 
@@ -404,4 +307,113 @@ async def reorder_milestone_tasks(
         
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.post("/{template_id}/create-task")
+async def create_milestone_task(
+    template_id: int,
+    task_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Crea nuovo task per la milestone"""
+    try:
+        # Verifica che la milestone esista
+        milestone_check = db.execute(text("SELECT id FROM workflow_milestones WHERE id = :id"), 
+                                   {"id": template_id}).fetchone()
+        if not milestone_check:
+            raise HTTPException(status_code=404, detail="Milestone non trovata")
+        
+        # Calcola il prossimo ordine
+        max_order_result = db.execute(text("""
+            SELECT COALESCE(MAX(ordine), 0) as max_ordine
+            FROM milestone_task_templates 
+            WHERE milestone_id = :milestone_id
+        """), {"milestone_id": template_id}).fetchone()
+        
+        next_order = (max_order_result.max_ordine or 0) + 1
+        
+        # Inserisce il nuovo task
+        query = """
+        INSERT INTO milestone_task_templates 
+        (milestone_id, nome, descrizione, ordine, durata_stimata_ore, 
+         ruolo_responsabile, obbligatorio, tipo_task)
+        VALUES 
+        (:milestone_id, :nome, :descrizione, :ordine, :durata_stimata_ore,
+         :ruolo_responsabile, :obbligatorio, :tipo_task)
+        RETURNING id
+        """
+        
+        result = db.execute(text(query), {
+            "milestone_id": template_id,
+            "nome": task_data.get("nome", "Nuovo Task"),
+            "descrizione": task_data.get("descrizione", ""),
+            "ordine": next_order,
+            "durata_stimata_ore": task_data.get("durata_stimata_ore", 8),
+            "ruolo_responsabile": task_data.get("ruolo_responsabile", ""),
+            "obbligatorio": task_data.get("obbligatorio", True),
+            "tipo_task": task_data.get("tipo_task", "standard")
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "message": "Task creato con successo",
+            "task_id": result.id,
+            "ordine": next_order
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.get("/{template_id}/tasks")
+async def get_milestone_tasks(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Recupera task della milestone ordinati per ordine"""
+    try:
+        # Verifica che la milestone esista
+        milestone_check = db.execute(text("SELECT id FROM workflow_milestones WHERE id = :id AND workflow_template_id IS NULL"), 
+                                   {"id": template_id}).fetchone()
+        if not milestone_check:
+            raise HTTPException(status_code=404, detail="Milestone template non trovata")
+        
+        query = """
+        SELECT id, milestone_id, nome, descrizione, ordine, durata_stimata_ore,
+               ruolo_responsabile, obbligatorio, tipo_task, created_at
+        FROM milestone_task_templates
+        WHERE milestone_id = :milestone_id
+        ORDER BY ordine, nome
+        """
+        
+        result = db.execute(text(query), {"milestone_id": template_id}).fetchall()
+        
+        tasks = []
+        for row in result:
+            tasks.append({
+                "id": row.id,
+                "milestone_id": row.milestone_id,
+                "nome": row.nome,
+                "descrizione": row.descrizione or "",
+                "ordine": row.ordine,
+                "sla_hours": row.durata_stimata_ore or 0,
+                "ruolo_responsabile": row.ruolo_responsabile or "",
+                "is_required": row.obbligatorio,
+                "priorita": row.tipo_task,
+                "created_at": str(row.created_at)
+            })
+        
+        total_hours = sum(task["sla_hours"] for task in tasks)
+        milestone_sla_giorni = max(1, (total_hours + 7) // 8)
+        
+        return {
+            "tasks": tasks,
+            "milestone_sla_giorni": milestone_sla_giorni,
+            "total_hours": total_hours
+        }
+        
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
