@@ -39,6 +39,7 @@ class Task(Base):
     checklist = Column(JSONB, default=[])
     task_metadata = Column(JSONB, default={})
     priorita = Column(String(20), default="normale")
+    ordine = Column(Integer, default=0)
     parent_task_id = Column(UUID(as_uuid=True))
     company_id = Column(BigInteger)
     commessa_id = Column(UUID(as_uuid=True))

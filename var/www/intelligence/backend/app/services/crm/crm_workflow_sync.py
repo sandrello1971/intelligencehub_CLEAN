@@ -191,11 +191,11 @@ class CRMWorkflowSync:
             INSERT INTO tasks (
                 id, milestone_id, title, description, status,
                 sla_deadline, estimated_hours, sla_hours, created_at,
-                task_template_id, priorita
+                task_template_id, priorita, ordine
             ) VALUES (
                 :id, :milestone_id, :title, :description, :status,
                 :sla_deadline, :estimated_hours, :sla_hours, :created_at,
-                :task_template_id, :priorita
+                :task_template_id, :priorita, :ordine
             )
         """)
         
@@ -209,9 +209,10 @@ class CRMWorkflowSync:
             "estimated_hours": ore_stimate,
             "sla_hours": ore_stimate,
             "created_at": datetime.utcnow(),
-                "created_by": owner_user_id
+            "created_by": owner_user_id,
             "task_template_id": task_template.get("id"),
-            "priorita": "normale"
+            "priorita": "normale",
+            "ordine": task_template.get("ordine", 0)
         })
         
         logger.info(f"   ✅ Created task: {task_template['nome']} ({ore_stimate}h)")
@@ -347,7 +348,7 @@ class CRMWorkflowSync:
                 "workflow_milestone_id": DEFAULT_MILESTONE_ID,
                 "metadata": json.dumps(metadata),
                 "created_at": datetime.utcnow(),
-                "created_by": owner_user_id
+            "created_by": owner_user_id,
             })
             
             logger.info(f"✅ Created ticket {ticket_id} for kit '{kit_name}'")

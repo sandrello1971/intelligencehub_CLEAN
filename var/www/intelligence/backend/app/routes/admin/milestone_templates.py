@@ -325,3 +325,83 @@ async def remove_task_from_milestone(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.get("/{template_id}/tasks")
+async def get_milestone_tasks(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Recupera task della milestone ordinati per ordine"""
+    try:
+        query = """
+        SELECT id, milestone_id, nome, descrizione, ordine, durata_stimata_ore,
+               ruolo_responsabile, obbligatorio, tipo_task, created_at
+        FROM milestone_task_templates
+        WHERE milestone_id = :milestone_id
+        ORDER BY ordine, nome
+        """
+        
+        result = db.execute(text(query), {"milestone_id": template_id}).fetchall()
+        
+        tasks = []
+        for row in result:
+            tasks.append({
+                "id": row.id,
+                "milestone_id": row.milestone_id,
+                "nome": row.nome,
+                "descrizione": row.descrizione or "",
+                "ordine": row.ordine,
+                "durata_stimata_ore": row.durata_stimata_ore or 0,
+                "ruolo_responsabile": row.ruolo_responsabile or "",
+                "obbligatorio": row.obbligatorio,
+                "tipo_task": row.tipo_task,
+                "created_at": str(row.created_at)
+            })
+        
+        total_hours = sum(task["durata_stimata_ore"] for task in tasks)
+        milestone_sla_giorni = max(1, (total_hours + 7) // 8)
+        
+        return {
+            "tasks": tasks,
+            "milestone_sla_giorni": milestone_sla_giorni,
+            "total_hours": total_hours
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@router.put("/{template_id}/tasks/reorder")
+async def reorder_milestone_tasks(
+    template_id: int,
+    request: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Aggiorna ordine task milestone"""
+    try:
+        tasks_order = request.get("tasks_order", [])
+        updated_count = 0
+        
+        for task_data in tasks_order:
+            task_id = task_data.get("id")
+            nuovo_ordine = task_data.get("ordine")
+            
+            if task_id and nuovo_ordine is not None:
+                result = db.execute(text("""
+                    UPDATE milestone_task_templates 
+                    SET ordine = :ordine 
+                    WHERE id = :task_id AND milestone_id = :milestone_id
+                """), {
+                    "ordine": nuovo_ordine,
+                    "task_id": task_id,
+                    "milestone_id": template_id
+                })
+                updated_count += result.rowcount
+        
+        db.commit()
+        return {"message": f"Aggiornati {updated_count} task", "updated_tasks": updated_count}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
