@@ -4,8 +4,8 @@ Business logic for ticket and task management
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.models.task import Task
 from app.models.ticket import Ticket
@@ -14,457 +14,360 @@ from app.models.activity import Activity
 
 
 class TicketingService:
-    """Core service for ticket and task management"""
+    """Core service for ticket and task management - VERSIONE COMPLETA"""
     
     def __init__(self, db: Session):
         self.db = db
     
-    # ===== TASK MANAGEMENT =====
-    
-    def get_task_detail(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Get detailed task information with relationships - Production Version"""
-        from sqlalchemy import text
-        
-        # Query SQL diretta basata sui dati reali del database
-        sql_query = text("""
-            SELECT 
-                t.id,
-                t.title,
-                t.description,
-                t.status,
-                t.priorita,
-                t.assigned_to,
-                t.due_date,
-                t.created_at,
-                t.milestone_id,
-                t.ticket_id as direct_ticket_id,
-                
-                -- Milestone info
-                m.title as milestone_name,
-                m.due_date as milestone_due_date,
-                
-                -- Ticket through milestone
-                tk_milestone.id as ticket_via_milestone_id,
-                tk_milestone.ticket_code as ticket_via_milestone_code,
-                tk_milestone.title as ticket_via_milestone_title,
-                
-                -- Ticket direct (if exists)
-                tk_direct.id as ticket_direct_id,
-                tk_direct.ticket_code as ticket_direct_code,
-                tk_direct.title as ticket_direct_title,
-                
-                -- Owner info
-                u.name as owner_first_name,
-                u.surname as owner_last_name,
-                
-                -- Activity info for account manager
-                a.owner_name as account_manager
-                
-            FROM tasks t
-            LEFT JOIN milestones m ON t.milestone_id = m.id
-            LEFT JOIN tickets tk_milestone ON tk_milestone.milestone_id = t.milestone_id
-            LEFT JOIN tickets tk_direct ON tk_direct.id = t.ticket_id
-            LEFT JOIN users u ON u.id = t.assigned_to
-            LEFT JOIN activities a ON (
-                a.id = tk_milestone.activity_id OR 
-                a.id = tk_direct.activity_id
-            )
-            WHERE t.id = :task_id
-            LIMIT 1
-        """)
-        
+    def validate_kit_commerciale(self, kit_identifier: str) -> Optional[Dict[str, Any]]:
+        """Validazione kit commerciale - VERSIONE SQL PURA"""
         try:
-            result = self.db.execute(sql_query, {"task_id": str(task_id)}).fetchone()
+            # Query SQL diretta per evitare import problematici
+            if kit_identifier.isdigit():
+                kit_query = text("""
+                    SELECT kc.id, kc.nome, kc.descrizione, kc.articolo_principale_id,
+                           a.codice, a.responsabile_user_id
+                    FROM kit_commerciali kc
+                    LEFT JOIN articoli a ON kc.articolo_principale_id = a.id
+                    WHERE kc.attivo = true AND kc.id = :kit_id
+                    LIMIT 1
+                """)
+                result = self.db.execute(kit_query, {"kit_id": int(kit_identifier)}).fetchone()
+            else:
+                kit_query = text("""
+                    SELECT kc.id, kc.nome, kc.descrizione, kc.articolo_principale_id,
+                           a.codice, a.responsabile_user_id
+                    FROM kit_commerciali kc
+                    LEFT JOIN articoli a ON kc.articolo_principale_id = a.id
+                    WHERE kc.attivo = true AND (kc.nome ILIKE :nome_like OR kc.nome = :nome_exact)
+                    LIMIT 1
+                """)
+                result = self.db.execute(kit_query, {
+                    "nome_like": f"%{kit_identifier}%",
+                    "nome_exact": kit_identifier
+                }).fetchone()
             
             if not result:
-                return None
+                return {"success": False, "error": f"Kit commerciale '{kit_identifier}' non trovato"}
             
-            # Determina quale ticket usare (priorità: diretto -> via milestone)
-            ticket_id = None
-            ticket_code = None
-            ticket_title = None
-            
-            if result.direct_ticket_id:
-                ticket_id = str(result.direct_ticket_id)
-                ticket_code = result.ticket_direct_code
-                ticket_title = result.ticket_direct_title
-            elif result.ticket_via_milestone_id:
-                ticket_id = str(result.ticket_via_milestone_id)
-                ticket_code = result.ticket_via_milestone_code
-                ticket_title = result.ticket_via_milestone_title
-            
-            # Owner name
-            owner_name = None
-            if result.owner_first_name and result.owner_last_name:
-                owner_name = f"{result.owner_first_name} {result.owner_last_name}"
-            
-            # Due date priority: task -> milestone
-            due_date = result.due_date or result.milestone_due_date
-            
-            return {
-                "id": result.id,
-                "title": result.title,
-                "description": result.description,
-                "status": result.status,
-                "priority": result.priorita,  
-                "priorita": result.priorita,  # Backward compatibility
-                
-                # Owner info
-                "owner": str(result.assigned_to) if result.assigned_to else None,
-                "owner_name": owner_name,
-                
-                # Milestone info
-                "milestone_id": str(result.milestone_id) if result.milestone_id else None,
-                "milestone_name": result.milestone_name,
-                
-                # Ticket info
-                "ticket_id": ticket_id,
-                "ticket_code": ticket_code,
-                "ticket_title": ticket_title,
-                
-                # Account Manager
-                "ticket_account": result.account_manager,
-                "account_manager": result.account_manager,
-                
-                # Dates
-                "due_date": due_date,
-                "created_at": result.created_at,
-                
-                # Legacy fields
-                "ticket_owner_name": None,
-                "predecessor_id": None,
-                "predecessor_title": None,
-                "closed_at": None,
-                "siblings": []
-            }
-            
-        except Exception as e:
-            # Log error in production
-            print(f"Error in get_task_detail: {e}")
-            return None
-    def update_task(self, task_id: int, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update task with business logic"""
-        task = self.db.query(Task).filter(Task.id == str(task_id)).first()
-        if not task:
-            return None
-        
-        # Define updatable fields with type casting
-        update_fields = {
-            "title": str,
-            "description": str,
-            "status": str,
-            "priority": str,
-            "owner": str,
-            "predecessor_id": int,
-            "parent_id": int
-        }
-        
-        # Update fields
-        for field, cast_type in update_fields.items():
-            if field in update_data:
-                value = update_data[field]
-                setattr(task, field, cast_type(value) if value is not None else None)
-        
-        # Handle services if provided
-        if "services" in update_data and task.ticket:
-            task.ticket.detected_services = update_data["services"]
-        
-        # Set closed timestamp if status changed to "chiuso"
-        if update_data.get("status") == "chiuso" and not task.closed_at:
-            task.closed_at = datetime.utcnow()
-        
-        self.db.commit()
-        self.db.refresh(task)
-        
-        # Auto-close ticket if all tasks are closed
-        if task.ticket_id:
-            self._auto_close_ticket_if_complete(task.ticket_id)
-        
-        # Sync with CRM if task closed
-        if update_data.get("status") == "chiuso" and task.ticket:
-            self._sync_task_closure_with_crm(task)
-        
-        return self.get_task_detail(task_id)
-    
-    def list_tasks(self, ticket_id: Optional[int] = None, filters: Optional[Dict] = None) -> List[Dict]:
-        """List tasks with optional filtering"""
-        query = self.db.query(Task)
-        
-        if ticket_id:
-            query = query.filter(Task.ticket_id == ticket_id)
-        
-        if filters:
-            if "status" in filters:
-                query = query.filter(Task.status == filters["status"])
-            if "owner" in filters:
-                query = query.filter(Task.owner == filters["owner"])
-            if "priority" in filters:
-                query = query.filter(Task.priority == filters["priority"])
-        
-        tasks = query.all()
-        
-        return [
-            {
-                "id": str(t.id),
-                "title": t.title,
-                "description": t.description,
-                "priority": t.priority,
-                "status": t.status,
-                "due_date": t.due_date,
-                "created_at": t.created_at,
-                "updated_at": t.updated_at,
-                "created_by": str(t.created_by) if t.created_by else None,
-                "assigned_to": str(t.assigned_to) if t.assigned_to else None,
-                "company_id": t.company_id,
-                "milestone_id": str(t.milestone_id) if t.milestone_id else None
-            }
-            for t in tasks
-        ]
-    
-    # ===== TICKET MANAGEMENT =====
-    
-    def get_ticket_detail(self, ticket_id: str) -> Optional[Dict[str, Any]]:
-        """Get detailed ticket information with tasks"""
-        ticket = (
-            self.db.query(Ticket)
-            .filter(Ticket.id == ticket_id)
-            .first()
-        )
-        
-        if not ticket:
-            return None
-        
-        # Get tasks tramite milestone
-        tasks = []
-        if ticket.milestone_id:
-            tasks = (
-                self.db.query(Task)
-                .filter(Task.milestone_id == ticket.milestone_id)
-                .all()
-            )
-        
-        # Enrich tasks with owner information
-        enriched_tasks = []
-        for task in tasks:
-            owner = self.db.query(User).filter(User.id == task.assigned_to).first() if task.assigned_to else None
-            owner_name = f"{owner.name} {owner.surname}" if owner else None
-            
-            enriched_tasks.append({
-                "id": str(task.id),
-                "title": task.title,
-                "description": task.description,
-                "status": task.status,
-                "priority": getattr(task, "priorita", "normale"),
-                "assigned_to": str(task.assigned_to) if task.assigned_to else None,
-                "owner_name": owner_name,
-                "due_date": task.due_date,
-                "created_at": task.created_at
-            })
-        
-        # Get owner details
-        owner_user = None
-        if ticket.created_by:
-            owner_user = self.db.query(User).filter(User.id == ticket.created_by).first()
-        
-        # Get company details for customer name
-        customer_name = None
-        if ticket.company_id:
-            from app.models.company import Company
-            company = self.db.query(Company).filter(Company.id == ticket.company_id).first()
-            customer_name = company.nome if company else None
-        
-        return {
-            "id": str(ticket.id),
-            "ticket_code": ticket.ticket_code,
-            "title": ticket.title,
-            "description": ticket.description,
-            "priority": ticket.priority,
-            "status": ticket.status,
-            "due_date": ticket.due_date,
-            "created_at": ticket.created_at,
-            "updated_at": ticket.updated_at,
-            "created_by": str(ticket.created_by) if ticket.created_by else None,
-            "assigned_to": str(ticket.assigned_to) if ticket.assigned_to else None,
-            "company_id": ticket.company_id,
-            "milestone_id": str(ticket.milestone_id) if ticket.milestone_id else None,
-            "workflow_milestone_id": ticket.workflow_milestone_id,
-            "activity_id": ticket.activity_id,
-            "owner": f"{owner_user.name} {owner_user.surname}" if owner_user else "Non assegnato",
-            "customer_name": customer_name or "N/A",
-            "tasks": enriched_tasks,
-            "tasks_stats": {
-                "total": len(enriched_tasks),
-                "completed": len([t for t in enriched_tasks if t["status"] in ["completed", "chiuso"]]),
-                "pending": len([t for t in enriched_tasks if t["status"] not in ["completed", "chiuso"]])
-            }
-        }
-    
-    def list_tickets(self, filters: Optional[Dict] = None) -> List[Dict]:
-        """List tickets with optional filtering"""
-        query = self.db.query(Ticket)
-        
-        if filters:
-            if "priority" in filters:
-                priority_map = {"alta": 2, "media": 1, "bassa": 0}
-                priority_value = priority_map.get(filters["priority"].lower())
-                if priority_value is not None:
-                    query = query.filter(Ticket.priority == priority_value)
-            
-            if "status" in filters:
-                query = query.filter(Ticket.status == filters["status"])
-            
-            if "customer_name" in filters:
-                query = query.filter(Ticket.customer_name.ilike(f"%{filters['customer_name']}%"))
-        
-        tickets = query.all()
-        
-        return [
-            {
-                "id": str(t.id),
-                "ticket_code": t.ticket_code,
-                "title": t.title,
-                "description": t.description,
-                "priority": t.priority,
-                "status": t.status,
-                "due_date": t.due_date,
-                "created_at": t.created_at,
-                "updated_at": t.updated_at,
-                "created_by": str(t.created_by) if t.created_by else None,
-                "assigned_to": str(t.assigned_to) if t.assigned_to else None,
-                "company_id": t.company_id,
-                "milestone_id": str(t.milestone_id) if t.milestone_id else None
-            }
-            for t in tickets
-        ]
-    
-    # ===== BUSINESS LOGIC HELPERS =====
-    
-    def _auto_close_ticket_if_complete(self, ticket_id: int) -> bool:
-        """Auto-close ticket if all tasks are completed"""
-        ticket = self.db.query(Ticket).filter(Ticket.id == ticket_id).first()
-        if not ticket:
-            return False
-        
-        all_tasks = self.db.query(Task).filter(Task.ticket_id == ticket_id).all()
-        
-        if all_tasks and all(t.status == "chiuso" for t in all_tasks) and ticket.status != 2:
-            ticket.status = 2  # 2 = chiuso
-            ticket.updated_at = datetime.utcnow()
-            self.db.commit()
-            return True
-        
-        return False
-    
-    def _sync_task_closure_with_crm(self, task: Task) -> None:
-        """Sync task closure with external CRM"""
-        # TODO: Implement CRM sync logic
-        # This would call the CRM integration module
-        pass
-    
-    def auto_close_completed_tickets(self) -> Dict[str, Any]:
-        """Batch operation to auto-close all completed tickets"""
-        tickets = self.db.query(Ticket).all()
-        updated = 0
-        closed_ids = []
-        
-        for ticket in tickets:
-            tasks = self.db.query(Task).filter(Task.ticket_id == ticket.id).all()
-            if tasks and all(t.status == "chiuso" for t in tasks) and ticket.status != 2:
-                ticket.status = 2  # 2 = chiuso
-                ticket.updated_at = datetime.utcnow()
-                closed_ids.append(ticket.id)
-                updated += 1
-        
-        self.db.commit()
-        
-        return {
-            "tickets_closed": updated,
-            "closed_ids": closed_ids,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-    # ===== COMMERCIAL METHODS =====
-    
-    def create_commercial_commessa(self, request_data: Dict[str, Any], current_user_id: str) -> Dict[str, Any]:
-        """Crea una commessa commerciale da un kit commerciale"""
-        try:
-            from app.models.kit_commerciali import KitCommerciale, KitArticolo
-            from app.models.commesse import Commessa
-            from app.models.company import Company
-            from app.services.crm.crmsdk import create_crm_activity
-            import uuid
-            
-            # Validazione input
-            company_id = request_data.get("company_id")
-            kit_id = request_data.get("kit_commerciale_id") 
-            notes = request_data.get("notes", "")
-            
-            # Trova azienda
-            company = self.db.query(Company).filter(Company.id == company_id).first()
-            if not company:
-                return {"success": False, "error": "Azienda non trovata"}
-            
-            # Trova kit commerciale
-            kit = self.db.query(KitCommerciale).filter(
-                KitCommerciale.id == kit_id,
-                KitCommerciale.attivo == True
-            ).first()
-            if not kit:
-                return {"success": False, "error": "Kit commerciale non trovato"}
-            
-            # Genera codice commessa univoco
-            commessa_code = f"COM-{kit.nome[:3].upper()}-{str(uuid.uuid4())[:8]}"
-            
-            # Crea la commessa
-            nuova_commessa = Commessa(
-                codice=commessa_code,
-                name=f"{kit.nome} - {company.nome}",
-                descrizione=f"Commessa generata da kit '{kit.nome}'\n\nNote: {notes}",
-                client_id=company_id,
-                created_by=current_user_id,
-                status="active"
-            )
-            
-            self.db.add(nuova_commessa)
-            self.db.flush()  # Per ottenere l'ID
-            
-            # Crea attività CRM per tracciamento commerciale
-            crm_activity_id = None
-            try:
-                crm_data = {
-                    "subject": f"Commessa {kit.nome} - {company.nome}",
-                    "description": f"Commessa commerciale per {kit.nome}\n\nCliente: {company.nome}\nNote: {notes}",
-                    "companyId": company_id,
-                    "ownerId": current_user_id
-                }
-                crm_activity_id = create_crm_activity(crm_data)
-                print(f"[CRM] Attività creata con ID: {crm_activity_id}")
-            except Exception as e:
-                print(f"[WARNING] CRM activity creation failed: {e}")
-            
-            # Trova articoli del kit
-            kit_articoli = self.db.query(KitArticolo).filter(
-                KitArticolo.kit_commerciale_id == kit_id
-            ).all()
-            
-            servizi_inclusi = []
-            for ka in kit_articoli:
-                if ka.articolo:
-                    servizi_inclusi.append(ka.articolo.nome)
-            
-            self.db.commit()
+            codice_articolo = result.codice or f"KIT{result.id}"
             
             return {
                 "success": True,
-                "commessa_id": str(nuova_commessa.id),
-                "commessa_code": commessa_code,
-                "kit_info": {"nome": kit.nome, "id": kit.id},
-                "company_info": {"nome": company.nome, "id": company.id},
-                "servizi_inclusi": servizi_inclusi,
-                "crm_activity_id": crm_activity_id,
-                "message": f"Commessa {commessa_code} creata con successo"
+                "kit": {
+                    "id": result.id,
+                    "nome": result.nome,
+                    "codice": codice_articolo,
+                    "descrizione": result.descrizione,
+                    "articolo_principale_id": result.articolo_principale_id,
+                    "responsabile_user_id": result.responsabile_user_id
+                }
+            }
+            
+        except Exception as e:
+            print(f"❌ Error in validate_kit_commerciale: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": str(e)}
+    
+    def insert_crm_activity_to_local(self, crm_activity: Dict[str, Any]) -> Optional[int]:
+        """Inserisce attività CRM nella tabella activities locale"""
+        try:
+            insert_query = text("""
+                INSERT INTO activities (
+                    title, description, status, priority, created_at,
+                    customer_name, company_id
+                ) VALUES (
+                    :title, :description, :status, :priority, :created_at,
+                    :customer_name, :company_id
+                ) RETURNING id
+            """)
+            
+            # Trova company_id se presente
+            company_id = None
+            if crm_activity.get('companyId'):
+                try:
+                    company_query = text('SELECT id FROM companies WHERE id = :crm_id')
+                    company_result = self.db.execute(company_query, {'crm_id': str(crm_activity['companyId'])}).fetchone()
+                    if company_result:
+                        company_id = company_result.id
+                except Exception:
+                    pass  # Company non trovata, procedi senza
+            
+            result = self.db.execute(insert_query, {
+                'title': crm_activity.get('subject', 'Attività CRM'),
+                'description': crm_activity.get('description', ''),
+                'status': 'attiva',
+                'priority': 'media', 
+                'created_at': datetime.utcnow(),
+                'customer_name': crm_activity.get('customerName', ''),
+                'company_id': company_id
+            }).fetchone()
+            
+            local_activity_id = result.id if result else None
+            print(f'✅ CRM activity {crm_activity["id"]} → local activity {local_activity_id}')
+            return local_activity_id
+            
+        except Exception as e:
+            print(f'❌ Error inserting CRM activity: {e}')
+            return None
+
+    def create_crm_commercial_ticket(self, activity: Dict[str, Any], kit_name: str) -> Optional[Dict[str, Any]]:
+        """Crea ticket commerciale con attività CRM inserita prima"""
+        try:
+            # 1. Validazione kit
+            kit_validation = self.validate_kit_commerciale(kit_name)
+            if not kit_validation["success"]:
+                return kit_validation
+            
+            kit_info = kit_validation["kit"]
+            print(f"✅ Kit validato: {kit_info['nome']} (Codice: {kit_info['codice']})")
+            
+            # 2. Inserisci attività CRM nella tabella locale PRIMA del ticket
+            local_activity_id = self.insert_crm_activity_to_local(activity)
+            if not local_activity_id:
+                print("⚠️ Warning: Could not insert CRM activity, proceeding without activity_id")
+            
+            # 3. Crea ticket con riferimento all'attività locale
+            import uuid
+            
+            ticket_id = str(uuid.uuid4())
+            ticket_code = f"TCK-{kit_info['codice']}-{str(activity.get('id', 0))[-4:].zfill(4)}-01"
+            
+            description = f"Ticket generato automaticamente da CRM Intelligence.\n\n"
+            description += f"🎯 Kit Commerciale: {kit_name}\n"
+            description += f"📋 Attività CRM: {activity.get('id', 'N/A')}\n"
+            description += f"🏢 Azienda CRM: {activity.get('companyId', 'N/A')}\n"
+            description += f"📄 Attività locale: {local_activity_id}\n"
+            
+            # Trova company_id dall'attività appena creata
+            company_id = None
+            if local_activity_id:
+                try:
+                    company_query = text("SELECT company_id FROM activities WHERE id = :activity_id")
+                    company_result = self.db.execute(company_query, {"activity_id": local_activity_id}).fetchone()
+                    if company_result:
+                        company_id = company_result.company_id
+                except Exception as e:
+                    print(f"⚠️ Warning getting company_id: {e}")
+            
+            # INSERIMENTO SQL con activity_id e company_id
+            insert_query = text("""
+                INSERT INTO tickets (
+                    id, ticket_code, title, description, priority, status, 
+                    activity_id, company_id, created_at, created_by
+                ) VALUES (
+                    :id, :ticket_code, :title, :description, :priority, :status,
+                    :activity_id, :company_id, :created_at, :created_by
+                )
+            """)
+            
+            self.db.execute(insert_query, {
+                "id": ticket_id,
+                "ticket_code": ticket_code,
+                "title": f"[COMMERCIALE] {kit_name}",
+                "description": description,
+                "priority": "alta",
+                "status": "aperto",
+                "activity_id": local_activity_id,  # USA ID LOCALE
+                "company_id": company_id,  # USA COMPANY_ID DALL'ACTIVITY
+                "created_at": datetime.utcnow(),
+                "created_by": kit_info.get("responsabile_user_id")
+            })
+            
+            # 4. Crea milestone reale
+            milestone_id = self._create_real_milestone(ticket_id, kit_name)
+            
+            # 5. Crea task del workflow commerciale
+            tasks_created = 0
+            if milestone_id:
+                tasks_created = self._create_commercial_tasks(milestone_id, ticket_id)
+                
+                # 6. Aggiorna ticket con milestone_id reale
+                update_query = text("UPDATE tickets SET milestone_id = :milestone_id WHERE id = :ticket_id")
+                self.db.execute(update_query, {"milestone_id": milestone_id, "ticket_id": ticket_id})
+            
+            self.db.commit()
+            
+            print(f"✅ Ticket creato: {ticket_code} (ID: {ticket_id})")
+            print(f"✅ Milestone creata: {milestone_id}")
+            print(f"✅ Task creati: {tasks_created}")
+            
+            return {
+                "success": True,
+                "ticket_id": ticket_id,
+                "ticket_code": ticket_code,
+                "milestone_id": milestone_id,
+                "tasks_created": tasks_created,
+                "kit_info": kit_info,
+                "message": f"Ticket commerciale {ticket_code} creato con successo"
             }
             
         except Exception as e:
             self.db.rollback()
+            print(f"❌ Error in create_crm_commercial_ticket: {e}")
+            import traceback
+            traceback.print_exc()
             return {"success": False, "error": str(e)}
+
+    def list_tickets(self, filters: Optional[Dict] = None) -> List[Dict]:
+        """List tickets with optional filtering"""
+        try:
+            query = text("""
+                SELECT t.id, t.ticket_code, t.title, t.description, t.priority, 
+                       t.status, t.created_at, t.created_by, t.activity_id,
+                       a.title as activity_title, a.company_id,
+                       c.name as company_name
+                FROM tickets t
+                LEFT JOIN activities a ON t.activity_id = a.id
+                LEFT JOIN companies c ON a.company_id = c.id
+                ORDER BY t.created_at DESC
+            """)
+            
+            result = self.db.execute(query).fetchall()
+            
+            tickets = []
+            for row in result:
+                tickets.append({
+                    "id": str(row.id),
+                    "ticket_code": row.ticket_code,
+                    "title": row.title,
+                    "description": row.description,
+                    "priority": row.priority,
+                    "status": row.status,
+                    "created_at": row.created_at.isoformat() if hasattr(row.created_at, "isoformat") and row.created_at else str(row.created_at) if row.created_at else None,
+                    "updated_at": row.created_at.isoformat() if hasattr(row.created_at, "isoformat") and row.created_at else str(row.created_at) if row.created_at else None,  # Same as created_at for now
+                    "created_by": str(row.created_by) if row.created_by else None,
+                    "assigned_to": str(row.created_by) if row.created_by else None,  # Same as created_by for now
+                    "activity_id": row.activity_id,
+                    "activity_title": row.activity_title,
+                    "company_name": row.company_name,
+                    "company_id": row.company_id,  # Company ID from activity
+                    "milestone_id": None,  # TODO: Add proper milestone_id
+                    "due_date": None  # No due date for now
+                })
+            
+            return tickets
+            
+        except Exception as e:
+            print(f"❌ Error listing tickets: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    def get_ticket_detail(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed ticket information"""
+        try:
+            query = text("""
+                SELECT t.id, t.ticket_code, t.title, t.description, t.priority, 
+                       t.status, t.created_at, t.created_by, t.activity_id,
+                       a.title as activity_title, a.description as activity_description,
+                       c.name as company_name
+                FROM tickets t
+                LEFT JOIN activities a ON t.activity_id = a.id
+                LEFT JOIN companies c ON a.company_id = c.id
+                WHERE t.id = :ticket_id
+                LIMIT 1
+            """)
+            
+            result = self.db.execute(query, {"ticket_id": ticket_id}).fetchone()
+            
+            if not result:
+                return None
+            
+            return {
+                "id": str(result.id),
+                "ticket_code": result.ticket_code,
+                "title": result.title,
+                "description": result.description,
+                "priority": result.priority,
+                "status": result.status,
+                "created_at": result.created_at.isoformat() if result.created_at else None,
+                "created_by": str(result.created_by) if result.created_by else None,
+                "activity_id": result.activity_id,
+                "activity_title": result.activity_title,
+                "activity_description": result.activity_description,
+                "company_name": result.company_name,
+                "tasks": [],
+                "tasks_stats": {"total": 0, "completed": 0, "pending": 0}
+            }
+            
+        except Exception as e:
+            print(f"❌ Error getting ticket detail: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def _create_real_milestone(self, ticket_id: str, kit_name: str) -> Optional[str]:
+        """Crea milestone reale per il ticket commerciale"""
+        try:
+            import uuid
+            milestone_id = str(uuid.uuid4())
+            
+            insert_query = text("""
+                INSERT INTO milestones (
+                    id, title, descrizione, workflow_milestone_id, due_date
+                ) VALUES (
+                    :id, :title, :descrizione, :workflow_milestone_id, :due_date
+                )
+            """)
+            
+            self.db.execute(insert_query, {
+                "id": milestone_id,
+                "title": "Invio incarico in firma",
+                "descrizione": f"Milestone commerciale per {kit_name}",
+                "workflow_milestone_id": 1,  # Default workflow
+                "due_date": None
+            })
+            
+            return milestone_id
+            
+        except Exception as e:
+            print(f"❌ Error creating milestone: {e}")
+            return None
+    
+    def _create_commercial_tasks(self, milestone_id: str, ticket_id: str) -> int:
+        """Crea task commerciali standard"""
+        tasks_created = 0
+        
+        commercial_tasks = [
+            {"title": "Predisposizione incarico", "descrizione": "Predisporre documentazione incarico", "ordine": 1, "sla_giorni": 2},
+            {"title": "Invio incarico", "descrizione": "Inviare incarico al cliente", "ordine": 2, "sla_giorni": 1},
+            {"title": "Firma incarico", "descrizione": "Ottenere firma dal cliente", "ordine": 3, "sla_giorni": 7},
+            {"title": "Archiviazione documenti", "descrizione": "Archiviare documentazione", "ordine": 4, "sla_giorni": 1}
+        ]
+        
+        try:
+            for task_data in commercial_tasks:
+                import uuid
+                task_id = str(uuid.uuid4())
+                
+                insert_query = text("""
+                    INSERT INTO tasks (
+                        id, title, description, status, priorita, 
+                        milestone_id, ticket_id, sla_giorni, ordine
+                    ) VALUES (
+                        :id, :title, :description, :status, :priorita,
+                        :milestone_id, :ticket_id, :sla_giorni, :ordine
+                    )
+                """)
+                
+                self.db.execute(insert_query, {
+                    "id": task_id,
+                    "title": task_data["title"],
+                    "description": task_data["descrizione"],
+                    "status": "todo",
+                    "priorita": "alta",
+                    "milestone_id": milestone_id,
+                    "ticket_id": ticket_id,
+                    "sla_giorni": task_data["sla_giorni"],
+                    "ordine": task_data["ordine"]
+                })
+                
+                tasks_created += 1
+                
+            return tasks_created
+            
+        except Exception as e:
+            print(f"❌ Error creating tasks: {e}")
+            return 0
