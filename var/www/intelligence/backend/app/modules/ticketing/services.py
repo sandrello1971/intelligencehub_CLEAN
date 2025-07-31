@@ -375,6 +375,7 @@ class TicketingService:
                     "company_id": row.company_id,
                     "milestone_id": str(row.milestone_id) if row.milestone_id else None,
                     "due_date": None,
+                    "note": row.note,
                     "tasks": tasks,
                     "tasks_stats": task_stats
                 })
@@ -486,6 +487,7 @@ class TicketingService:
                 "predecessor_id": int(str(result.parent_task_id).replace("-", "")[:8], 16) if result.parent_task_id else None,
                 "predecessor_title": None,
                 "closed_at": None,
+                "note": result.note,
                 "siblings": siblings
             }
             
