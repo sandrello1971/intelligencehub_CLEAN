@@ -120,6 +120,8 @@ class TicketListItem(BaseModel):
     assigned_to: Optional[str]  # UUID come stringa
     company_id: Optional[int]
     milestone_id: Optional[str]  # UUID come stringa
+    tasks: Optional[List[Dict]] = []
+    tasks_stats: Optional[Dict] = {}
     
     class Config:
         from_attributes = True

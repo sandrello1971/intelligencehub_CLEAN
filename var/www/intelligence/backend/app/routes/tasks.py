@@ -16,7 +16,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
-def get_task_detail(task_id: int, db: Session = Depends(get_db)):
+def get_task_detail(task_id: str, db: Session = Depends(get_db)):
     """Get detailed information about a specific task"""
     service = TicketingService(db)
     task = service.get_task_detail(task_id)
@@ -28,7 +28,7 @@ def get_task_detail(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
-def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get_db)):
+def update_task(task_id: str, task_update: TaskUpdate, db: Session = Depends(get_db)):
     """Update a task with business logic"""
     service = TicketingService(db)
     
@@ -68,7 +68,7 @@ def list_tasks(
 
 
 @router.post("/{task_id}/confirm-create-opportunities")
-def confirm_create_opportunities(task_id: int, db: Session = Depends(get_db)):
+def confirm_create_opportunities(task_id: str, db: Session = Depends(get_db)):
     """Confirm creation of opportunities from task services"""
     service = TicketingService(db)
     task = service.get_task_detail(task_id)
