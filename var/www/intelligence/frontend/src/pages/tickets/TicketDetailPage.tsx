@@ -46,6 +46,7 @@ interface TicketDetail {
   company_id: number;
   due_date: string | null;
   created_at: string;
+  note: string | null;
   tasks: Array<{
     id: string;
     title: string;
@@ -60,6 +61,8 @@ interface TicketDetail {
     completed: number;
     pending: number;
   };
+  account_manager_id: string | null;
+  account_manager_name: string | null;
 }
 
 const TicketDetailPage: React.FC = () => {
@@ -76,7 +79,8 @@ const TicketDetailPage: React.FC = () => {
     title: '',
     description: '',
     status: '',
-    priority: ''
+    priority: '',
+    note: ''
   });
 
   useEffect(() => {
@@ -252,7 +256,8 @@ const TicketDetailPage: React.FC = () => {
                           title: ticket.title,
                           description: ticket.description || '',
                           status: ticket.status,
-                          priority: ticket.priority
+                          priority: ticket.priority,
+                          note: ticket.note || ''
                         });
                       }}
                     >
@@ -293,6 +298,20 @@ const TicketDetailPage: React.FC = () => {
                   rows={6}
                   disabled={!editMode}
                   variant={editMode ? 'outlined' : 'filled'}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Note"
+                  value={editMode ? formData.note : (ticket.note || "")}
+                  onChange={(e) => editMode && setFormData({...formData, note: e.target.value})}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  disabled={!editMode}
+                  variant={editMode ? "outlined" : "filled"}
+                  placeholder="Aggiungi note per questo ticket..."
                 />
               </Grid>
 
@@ -467,6 +486,24 @@ const TicketDetailPage: React.FC = () => {
               </Grid>
             </Grid>
           </Paper>
+
+          {/* Account Manager */}
+          {ticket.account_manager_name && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Account Manager
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                {ticket.account_manager_name}
+              </Typography>
+              {ticket.account_manager_id && (
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  ID: {ticket.account_manager_id}
+                </Typography>
+              )}
+            </Paper>
+          )}
 
           {/* Cliente */}
           <Paper sx={{ p: 3, mb: 3 }}>

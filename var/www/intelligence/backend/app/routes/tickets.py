@@ -59,14 +59,18 @@ def update_ticket(ticket_id: str, ticket_update: TicketUpdate, db: Session = Dep
     """Update a ticket"""
     service = TicketingService(db)
     
-    # TODO: Implement ticket update logic in service
-    # For now, just return the ticket detail
-    ticket = service.get_ticket_detail(ticket_id)
+    # Convertiamo i dati di update
+    update_data = ticket_update.dict(exclude_unset=True)
     
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket non trovato")
+    # Chiamiamo il servizio per aggiornare il ticket
+    updated_ticket = service.update_ticket(ticket_id, update_data)
     
-    return ticket
+    if not updated_ticket:
+        raise HTTPException(status_code=500, detail="Errore nell'aggiornamento del ticket")
+    
+    return updated_ticket
+    
+    
 
 
 @router.post("/{ticket_id}/generate-all")

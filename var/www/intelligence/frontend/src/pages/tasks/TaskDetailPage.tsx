@@ -41,6 +41,7 @@ interface TaskDetail {
   ticket_id: string | null;
   ticket_code: string;
   siblings: Array<{id: string, title: string, status: string}>;
+  note: string | null;
 }
 
 interface User {
@@ -67,8 +68,9 @@ const TaskDetailPage: React.FC = () => {
     description: '',
     status: '',
     priority: '',
-    owner: ''
+    owner: '',
   });
+    note: ''
 
   useEffect(() => {
     if (taskId) {
@@ -125,7 +127,8 @@ const TaskDetailPage: React.FC = () => {
         description: normalizedTaskData.description || '',
         status: normalizedTaskData.status || '',
         priority: normalizedTaskData.priority || '',
-        owner: normalizedTaskData.owner || ''
+        owner: normalizedTaskData.owner || '',
+        note: normalizedTaskData.note || ''
       });
       
     } catch (err) {
@@ -140,7 +143,7 @@ const TaskDetailPage: React.FC = () => {
     
     try {
       setSaving(true);
-      const response = await fetch(`/api/v1/tasks/${task.id}`, {
+      const response = await fetch(`/api/v1/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -279,8 +282,9 @@ const TaskDetailPage: React.FC = () => {
                           description: task.description || '',
                           status: task.status || '',
                           priority: task.priority || '',
-                          owner: task.owner || ''
+                          owner: task.owner || '',
                         });
+                          note: task.note || ''
                       }}
                       size="small"
                     >
@@ -338,6 +342,28 @@ const TaskDetailPage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                       {task.description || 'Nessuna descrizione disponibile'}
+                    </Typography>
+                  </>
+                )}
+              </Grid>
+
+              <Grid item xs={12}>
+                {editMode ? (
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    label="Note"
+                    value={formData.note}
+                    onChange={(e) => setFormData({...formData, note: e.target.value})}
+                  />
+                ) : (
+                  <>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      Note
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
+                      {task.note || "Nessuna nota disponibile"}
                     </Typography>
                   </>
                 )}

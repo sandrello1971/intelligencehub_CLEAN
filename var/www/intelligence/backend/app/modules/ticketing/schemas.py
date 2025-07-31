@@ -24,6 +24,10 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     owner: Optional[str] = None
+    note: Optional[str] = None
+    responsabile_name: Optional[str]
+    responsabile_id: Optional[str]
+    articolo_nome: Optional[str]
     predecessor_id: Optional[int] = None
     parent_id: Optional[int] = None
     services: Optional[List[str]] = None
@@ -42,6 +46,10 @@ class TaskResponse(BaseModel):
     predecessor_id: Optional[int]
     predecessor_title: Optional[str]
     closed_at: Optional[datetime]
+    note: Optional[str]
+    responsabile_name: Optional[str]
+    responsabile_id: Optional[str]
+    articolo_nome: Optional[str]
     siblings: List[Dict[str, Any]]
     
     class Config:
@@ -58,6 +66,10 @@ class TaskListItem(BaseModel):
     predecessor_id: Optional[int]
     milestone_id: Optional[int]
     closed_at: Optional[datetime]
+    note: Optional[str]
+    responsabile_name: Optional[str]
+    responsabile_id: Optional[str]
+    articolo_nome: Optional[str]
     
     class Config:
         from_attributes = True
@@ -79,6 +91,10 @@ class TicketUpdate(BaseModel):
     status: Optional[int] = None
     customer_name: Optional[str] = None
     owner: Optional[str] = None
+    note: Optional[str] = None
+    responsabile_name: Optional[str]
+    responsabile_id: Optional[str]
+    articolo_nome: Optional[str]
 
 class TicketResponse(BaseModel):
     id: int
@@ -139,6 +155,10 @@ class TicketFilters(BaseModel):
 class TaskFilters(BaseModel):
     status: Optional[str] = None
     owner: Optional[str] = None
+    note: Optional[str] = None
+    responsabile_name: Optional[str]
+    responsabile_id: Optional[str]
+    articolo_nome: Optional[str]
     priority: Optional[str] = None
 
 class BulkOperationResult(BaseModel):

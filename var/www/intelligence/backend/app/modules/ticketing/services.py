@@ -334,7 +334,7 @@ class TicketingService:
         try:
             query = text("""
                 SELECT t.id, t.ticket_code, t.title, t.description, t.priority, 
-                       t.status, t.created_at, t.created_by, t.activity_id, t.milestone_id,
+                       t.status, t.created_at, t.created_by, t.activity_id, t.milestone_id, t.note,
                        a.title as activity_title, a.company_id,
                        c.name as company_name
                 FROM tickets t
@@ -391,7 +391,7 @@ class TicketingService:
         try:
             query = text("""
                 SELECT t.id, t.ticket_code, t.title, t.description, t.priority, 
-                       t.status, t.created_at, t.created_by, t.activity_id, t.milestone_id,
+                       t.status, t.created_at, t.created_by, t.activity_id, t.milestone_id, t.note,
                        a.title as activity_title, a.description as activity_description,
                        a.accompagnato_da, a.accompagnato_da_nome,
                        c.name as company_name
@@ -435,6 +435,10 @@ class TicketingService:
                 "account_manager_id": result.accompagnato_da,
                 "account_manager_name": result.accompagnato_da_nome,
                 "milestone_id": str(result.milestone_id) if result.milestone_id else None,
+                "note": result.note,
+                "responsabile_name": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else None,
+                "responsabile_id": str(result.responsabile_user_id) if result.responsabile_user_id else None,
+                "articolo_nome": result.articolo_nome,
                 "tasks": tasks,
                 "tasks_stats": task_stats
             }
@@ -443,20 +447,68 @@ class TicketingService:
             print(f"❌ Error getting ticket detail: {e}")
             return None
 
+
+    def update_ticket(self, ticket_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update a ticket with new data"""
+        try:
+            # Costruiamo la query di update dinamicamente
+            update_fields = []
+            params = {"ticket_id": ticket_id}
+            
+            # Mappiamo i campi che possono essere aggiornati
+            field_mapping = {
+                "title": "title",
+                "description": "description", 
+                "priority": "priority",
+                "status": "status",
+                "note": "note"
+            }
+            
+            # Solo i campi forniti vengono aggiornati
+            for field, db_field in field_mapping.items():
+                if field in update_data and update_data[field] is not None:
+                    update_fields.append(f"{db_field} = :{field}")
+                    params[field] = update_data[field]
+            
+            if not update_fields:
+                return self.get_ticket_detail(ticket_id)
+            
+            # Eseguiamo l'update
+            update_query = text(f"""
+                UPDATE tickets 
+                SET {", ".join(update_fields)}
+                WHERE id = :ticket_id
+            """)
+            
+            self.db.execute(update_query, params)
+            self.db.commit()
+            
+            # Restituiamo il ticket aggiornato
+            return self.get_ticket_detail(ticket_id)
+            
+        except Exception as e:
+            self.db.rollback()
+            print(f"❌ Error updating ticket: {e}")
+            return None
     # ===== TASK MANAGEMENT =====
 
     def get_task_detail(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed task information by ID - COMPLETO"""
         try:
             query = text("""
-                SELECT t.id, t.title, t.description, t.status, t.priorita, t.assigned_to,
+                SELECT t.id, t.title, t.description, t.status, t.priorita, t.assigned_to, t.note,
                        t.milestone_id, t.ticket_id, t.sla_giorni, t.ordine, t.estimated_hours,
                        t.parent_task_id, t.due_date,
                        tk.ticket_code, tk.title as ticket_title,
                        u.name as owner_name, u.surname as owner_surname
+                       ,resp.name as responsabile_name, resp.surname as responsabile_surname,
+                       ar.nome as articolo_nome, ar.responsabile_user_id
                 FROM tasks t
                 LEFT JOIN tickets tk ON t.ticket_id = tk.id
                 LEFT JOIN users u ON t.assigned_to = u.id
+                LEFT JOIN activities a ON tk.activity_id = a.id
+                LEFT JOIN articoli ar ON SUBSTRING(tk.ticket_code FROM 5 FOR 3) = ar.codice
+                LEFT JOIN users resp ON ar.responsabile_user_id = resp.id
                 WHERE t.id = :task_id
                 LIMIT 1
             """)
@@ -488,6 +540,9 @@ class TicketingService:
                 "predecessor_title": None,
                 "closed_at": None,
                 "note": result.note,
+                "responsabile_name": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else None,
+                "responsabile_id": str(result.responsabile_user_id) if result.responsabile_user_id else None,
+                "articolo_nome": result.articolo_nome,
                 "siblings": siblings
             }
             
@@ -495,6 +550,50 @@ class TicketingService:
             print(f"❌ Error getting task detail: {e}")
             return None
 
+
+    def update_task(self, task_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update a task with new data"""
+        try:
+            # Costruiamo la query di update dinamicamente
+            update_fields = []
+            params = {"task_id": task_id}
+            
+            # Mappiamo i campi che possono essere aggiornati
+            field_mapping = {
+                "title": "title",
+                "description": "description", 
+                "status": "status",
+                "priority": "priorita",
+                "owner": "assigned_to",
+                "note": "note"
+            }
+            
+            # Solo i campi forniti vengono aggiornati
+            for field, db_field in field_mapping.items():
+                if field in update_data and update_data[field] is not None:
+                    update_fields.append(f"{db_field} = :{field}")
+                    params[field] = update_data[field]
+            
+            if not update_fields:
+                return self.get_task_detail(task_id)
+            
+            # Eseguiamo l'update
+            update_query = text(f"""
+                UPDATE tasks 
+                SET {", ".join(update_fields)}
+                WHERE id = :task_id
+            """)
+            
+            self.db.execute(update_query, params)
+            self.db.commit()
+            
+            # Restituiamo il task aggiornato
+            return self.get_task_detail(task_id)
+            
+        except Exception as e:
+            self.db.rollback()
+            print(f"❌ Error updating task: {e}")
+            return None
     # ===== BUSINESS LOGIC HELPERS =====
     
     def auto_close_completed_tickets(self) -> Dict[str, Any]:
