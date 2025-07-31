@@ -160,16 +160,60 @@ class CRMSyncService:
         """
         Trova company_id nel nostro DB tramite CRM ID
         """
-        query = text("SELECT id FROM companies WHERE crm_id = :crm_id")
+        query = text("SELECT id FROM companies WHERE id = :crm_id")
         result = self.db.execute(query, {"crm_id": str(crm_company_id)}).fetchone()
         return result.id if result else None
+    
+    def insert_crm_activity_to_local(self, crm_activity: Dict) -> Optional[int]:
+        """
+        Inserisce attività CRM nella tabella activities locale
+        
+        Args:
+            crm_activity: Dati dell'attività CRM
+            
+        Returns:
+            ID dell'attività locale creata o None se errore
+        """
+        try:
+            insert_query = text("""
+                INSERT INTO activities (
+                    title, description, status, priority, created_at,
+                    customer_name, company_id
+                ) VALUES (
+                    :title, :description, :status, :priority, :created_at,
+                    :customer_name, :company_id
+                ) RETURNING id
+            """)
+            
+            # Trova company_id locale
+            company_id = None
+            if crm_activity.get("companyId"):
+                company_id = self.find_company_by_crm_id(crm_activity["companyId"])
+            
+            result = self.db.execute(insert_query, {
+                "title": crm_activity.get("subject", "Attività CRM"),
+                "description": crm_activity.get("description", ""),
+                "status": "attiva",
+                "priority": "media", 
+                "created_at": datetime.utcnow(),
+                "customer_name": crm_activity.get("customerName", ""),
+                "company_id": company_id
+            }).fetchone()
+            
+            local_activity_id = result.id if result else None
+            logger.info(f"✅ CRM activity {crm_activity['id']} inserted as local activity {local_activity_id}")
+            return local_activity_id
+            
+        except Exception as e:
+            logger.error(f"❌ Error inserting CRM activity {crm_activity['id']}: {e}")
+            return None
     
     def activity_already_processed(self, crm_activity_id: int) -> bool:
         """
         Verifica se l'attività è già stata processata
         """
-        query = text("SELECT id FROM tickets WHERE crm_activity_id = :crm_activity_id")
-        result = self.db.execute(query, {"crm_activity_id": str(crm_activity_id)}).fetchone()
+        query = text("SELECT id FROM tickets WHERE activity_id = :activity_id")
+        result = self.db.execute(query, {"activity_id": crm_activity_id}).fetchone()
         return result is not None
     
     def create_commercial_ticket(self, activity: Dict, kit_name: str) -> Optional[int]:
@@ -208,26 +252,32 @@ class CRMSyncService:
             if activity.get("description"):
                 description += f"\nDescrizione originale:\n{activity['description']}"
             
+
+            # Prima inserisci attività CRM nella tabella activities locale
+            local_activity_id = self.insert_crm_activity_to_local(activity)
+            if not local_activity_id:
+                logger.error(f"❌ Failed to insert CRM activity {activity["id"]} to local database")
+                return None
+            logger.info(f"✅ CRM activity {activity["id"]} inserted with local ID {local_activity_id}")
+
             # Inserisci ticket nel database
             insert_query = text("""
                 INSERT INTO tickets (
-                    subject, description, tipo, priority, status, 
-                    company_id, crm_activity_id, created_by, created_at
+                    title, description, priority, status, 
+                    company_id, activity_id, created_at
                 ) VALUES (
-                    :subject, :description, :tipo, :priority, :status,
-                    :company_id, :crm_activity_id, :created_by, :created_at
+                    :title, :description, :priority, :status,
+                    :company_id, :activity_id, :created_at
                 ) RETURNING id
             """)
             
             result = self.db.execute(insert_query, {
-                "subject": subject,
+                "title": subject,
                 "description": description,
-                "tipo": "commerciale",
                 "priority": "media",
                 "status": "aperto", 
                 "company_id": company_id,
-                "crm_activity_id": str(activity["id"]),
-                "created_by": "CRM_SYNC",
+                "activity_id": local_activity_id,
                 "created_at": datetime.utcnow()
             }).fetchone()
             
