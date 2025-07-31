@@ -20,159 +20,130 @@ class TicketingService:
     def __init__(self, db: Session):
         self.db = db
     
-    # ===== WORKFLOW DYNAMICS METHODS =====
+    # ===== UTILITY METHODS =====
     
     def _get_default_workflow_id(self) -> int:
         """Recupera ID del workflow commerciale standard"""
         try:
-            query = text("SELECT id FROM workflow_templates WHERE nome = 'Workflow start' AND attivo = true LIMIT 1")
+            query = text("SELECT id FROM workflow_templates WHERE nome = 'Commerciale Standard' LIMIT 1")
             result = self.db.execute(query).fetchone()
             return result.id if result else 1
         except Exception as e:
-            print(f"⚠️ Warning getting workflow ID: {e}")
+            print(f"⚠️  Warning getting workflow ID: {e}")
             return 1
-
-    def _get_default_milestone_id(self) -> int:
-        """Recupera ID della milestone commerciale standard"""
+    
+    def _get_default_milestone_id(self) -> str:
+        """Recupera milestone ID di default per task commerciali"""
         try:
-            workflow_id = self._get_default_workflow_id()
-            query = text("""
-                SELECT id FROM workflow_milestones 
-                WHERE workflow_template_id = :workflow_id 
-                AND nome ILIKE '%incarico%firma%' 
-                ORDER BY ordine LIMIT 1
-            """)
-            result = self.db.execute(query, {"workflow_id": workflow_id}).fetchone()
-            return result.id if result else 3
+            query = text("SELECT id FROM workflow_milestones WHERE workflow_id = :workflow_id LIMIT 1")
+            result = self.db.execute(query, {"workflow_id": self._get_default_workflow_id()}).fetchone()
+            return str(result.id) if result else "1"
         except Exception as e:
-            print(f"⚠️ Warning getting milestone ID: {e}")
-            return 3
-
-    def validate_kit_commerciale(self, kit_identifier: str) -> Optional[Dict[str, Any]]:
-        """Validazione kit commerciale - VERSIONE SQL PURA"""
+            print(f"⚠️  Warning getting milestone ID: {e}")
+            return "1"
+    
+    def validate_kit_commerciale(self, kit_name: str) -> Dict[str, Any]:
+        """Valida l'esistenza di un kit commerciale"""
         try:
-            if kit_identifier.isdigit():
-                kit_query = text("""
-                    SELECT kc.id, kc.nome, kc.descrizione, kc.articolo_principale_id,
-                           a.codice, a.responsabile_user_id
-                    FROM kit_commerciali kc
-                    LEFT JOIN articoli a ON kc.articolo_principale_id = a.id
-                    WHERE kc.attivo = true AND kc.id = :kit_id
-                    LIMIT 1
-                """)
-                result = self.db.execute(kit_query, {"kit_id": int(kit_identifier)}).fetchone()
-            else:
-                kit_query = text("""
-                    SELECT kc.id, kc.nome, kc.descrizione, kc.articolo_principale_id,
-                           a.codice, a.responsabile_user_id
-                    FROM kit_commerciali kc
-                    LEFT JOIN articoli a ON kc.articolo_principale_id = a.id
-                    WHERE kc.attivo = true AND (kc.nome ILIKE :nome_like OR kc.nome = :nome_exact)
-                    LIMIT 1
-                """)
-                result = self.db.execute(kit_query, {
-                    "nome_like": f"%{kit_identifier}%",
-                    "nome_exact": kit_identifier
-                }).fetchone()
+            query = text("""
+                SELECT k.id, k.nome, k.attivo, a.codice, a.responsabile_user_id
+                FROM kit_commerciali k
+                LEFT JOIN articoli a ON k.articolo_principale_id = a.id
+                WHERE k.nome = :kit_name AND k.attivo = true
+                LIMIT 1
+            """)
+            
+            result = self.db.execute(query, {"kit_name": kit_name}).fetchone()
             
             if not result:
-                return {"success": False, "error": f"Kit commerciale '{kit_identifier}' non trovato"}
-            
-            codice_articolo = result.codice or f"KIT{result.id}"
+                return {
+                    "success": False,
+                    "error": f"Kit commerciale '{kit_name}' non trovato o non attivo"
+                }
             
             return {
                 "success": True,
                 "kit": {
                     "id": result.id,
                     "nome": result.nome,
-                    "codice": codice_articolo,
-                    "descrizione": result.descrizione,
-                    "articolo_principale_id": result.articolo_principale_id,
+                    "codice": result.codice,
+                    "attivo": result.attivo,
                     "responsabile_user_id": result.responsabile_user_id
                 }
             }
             
         except Exception as e:
-            print(f"❌ Error in validate_kit_commerciale: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": f"Errore validazione kit: {str(e)}"
+            }
     
-    def insert_crm_activity_to_local(self, crm_activity: Dict[str, Any]) -> Optional[int]:
-        """Inserisce attività CRM nella tabella activities locale con Account Manager"""
+    def insert_crm_activity_to_local(self, activity: Dict[str, Any]) -> Optional[int]:
+        """Inserisce attività CRM nella tabella activities locale"""
         try:
             insert_query = text("""
                 INSERT INTO activities (
                     title, description, status, priority, created_at,
-                    customer_name, company_id, accompagnato_da, accompagnato_da_nome
+                    customer_name, company_id, owner_id, owner_name,
+                    accompagnato_da, accompagnato_da_nome
                 ) VALUES (
                     :title, :description, :status, :priority, :created_at,
-                    :customer_name, :company_id, :accompagnato_da, :accompagnato_da_nome
+                    :customer_name, :company_id, :owner_id, :owner_name,
+                    :accompagnato_da, :accompagnato_da_nome
                 ) RETURNING id
             """)
             
-            company_id = None
-            if crm_activity.get('companyId'):
-                try:
-                    company_query = text('SELECT id FROM companies WHERE id = :crm_id')
-                    company_result = self.db.execute(company_query, {'crm_id': str(crm_activity['companyId'])}).fetchone()
-                    if company_result:
-                        company_id = company_result.id
-                except Exception:
-                    pass
-            
-            # Recupera info Account Manager
-            account_manager_id = crm_activity.get('idCompanion')
-            account_manager_name = None
-            if account_manager_id:
-                try:
-                    am_query = text('SELECT name, surname FROM users WHERE crm_id = :crm_id')
-                    am_result = self.db.execute(am_query, {'crm_id': account_manager_id}).fetchone()
-                    if am_result:
-                        account_manager_name = f'{am_result.name} {am_result.surname}'.strip()
-                except Exception:
-                    pass
+            company_id = activity.get("companyId")  # ID CRM diretto
+            if company_id:
+                # Verifica che la company esista
+                company_query = text("SELECT id FROM companies WHERE id = :company_id LIMIT 1")
+                company_result = self.db.execute(company_query, {"company_id": company_id}).fetchone()
+                company_id = company_result.id if company_result else None
+                company_id = company_result.id if company_result else None
             
             result = self.db.execute(insert_query, {
-                'title': crm_activity.get('subject', 'Attività CRM'),
-                'description': crm_activity.get('description', ''),
-                'status': 'attiva',
-                'priority': 'media', 
-                'created_at': datetime.utcnow(),
-                'customer_name': crm_activity.get('customerName', ''),
-                'company_id': company_id,
-                'accompagnato_da': account_manager_id,
-                'accompagnato_da_nome': account_manager_name
+                "title": activity.get("subject", "Attività CRM"),
+                "description": activity.get("description", ""),
+                "status": "attiva",
+                "priority": "media", 
+                "created_at": datetime.utcnow(),
+                "customer_name": activity.get("customerName", ""),
+                "company_id": company_id,
+                "owner_id": activity.get("ownerId"),
+                "owner_name": activity.get("ownerName", ""),
+                "accompagnato_da": activity.get("accompagnato_da"),
+                "accompagnato_da_nome": activity.get("accompagnato_da_nome")
             }).fetchone()
             
             local_activity_id = result.id if result else None
-            print(f'✅ CRM activity {crm_activity["id"]} → local activity {local_activity_id}')
+            print(f"✅ Attività CRM inserita localmente: ID {local_activity_id}")
             return local_activity_id
             
         except Exception as e:
-            print(f'❌ Error inserting CRM activity: {e}')
+            print(f"❌ Error inserting CRM activity: {e}")
             return None
-
+    
+    # ===== MILESTONE METHODS =====
+    
     def _create_real_milestone(self, ticket_id: str, kit_name: str) -> Optional[str]:
-        """Crea milestone reale per il ticket commerciale - SENZA HARDCODE"""
+        """Crea milestone reale nel database"""
         try:
             import uuid
             milestone_id = str(uuid.uuid4())
             
-            workflow_milestone_id = self._get_default_milestone_id()
-            
             insert_query = text("""
                 INSERT INTO milestones (
-                    id, title, descrizione, workflow_milestone_id, due_date
+                    id, title, descrizione, stato
                 ) VALUES (
-                    :id, :title, :descrizione, :workflow_milestone_id, :due_date
+                    :id, :title, :descrizione, :stato
                 )
             """)
             
             self.db.execute(insert_query, {
                 "id": milestone_id,
-                "title": "Invio incarico in firma",
-                "descrizione": f"Milestone commerciale per {kit_name}",
-                "workflow_milestone_id": workflow_milestone_id,
-                "due_date": None
+                "title": f"Milestone per {kit_name}",
+                "descrizione": f"Milestone automatica per kit commerciale {kit_name}",
+                "stato": "pianificata"
             })
             
             return milestone_id
@@ -182,10 +153,18 @@ class TicketingService:
             return None
     
     def _create_commercial_tasks(self, milestone_id: str, ticket_id: str) -> int:
-        """Crea task commerciali dal database - SENZA HARDCODE"""
+        """Crea task commerciali dal database - CON ASSIGNED_TO"""
         tasks_created = 0
         
         try:
+            # Ottieni il created_by del ticket per assegnare i task
+            ticket_query = text("SELECT created_by FROM tickets WHERE id = :ticket_id")
+            ticket_result = self.db.execute(ticket_query, {"ticket_id": ticket_id}).fetchone()
+            ticket_owner = ticket_result.created_by if ticket_result else None
+            
+            if not ticket_owner:
+                print(f"⚠️ Warning: No ticket owner found for {ticket_id}")
+            
             workflow_milestone_id = self._get_default_milestone_id()
             
             task_query = text("""
@@ -208,10 +187,10 @@ class TicketingService:
                 insert_query = text("""
                     INSERT INTO tasks (
                         id, title, description, status, priorita, 
-                        milestone_id, ticket_id, sla_giorni, ordine, estimated_hours
+                        milestone_id, ticket_id, sla_giorni, ordine, estimated_hours, assigned_to
                     ) VALUES (
                         :id, :title, :description, :status, :priorita,
-                        :milestone_id, :ticket_id, :sla_giorni, :ordine, :estimated_hours
+                        :milestone_id, :ticket_id, :sla_giorni, :ordine, :estimated_hours, :assigned_to
                     )
                 """)
                 
@@ -227,11 +206,12 @@ class TicketingService:
                     "ticket_id": ticket_id,
                     "sla_giorni": sla_giorni,
                     "ordine": task_template.ordine,
-                    "estimated_hours": task_template.durata_stimata_ore
+                    "estimated_hours": task_template.durata_stimata_ore,
+                    "assigned_to": ticket_owner
                 })
                 
                 tasks_created += 1
-                print(f"   ✅ Created task: {task_template.nome} ({task_template.durata_stimata_ore}h)")
+                print(f"   ✅ Created task: {task_template.nome} ({task_template.durata_stimata_ore}h) → Assigned to: {ticket_owner[:8] if ticket_owner else None}")
                 
             return tasks_created
             
@@ -394,10 +374,15 @@ class TicketingService:
                        t.status, t.created_at, t.created_by, t.activity_id, t.milestone_id, t.note,
                        a.title as activity_title, a.description as activity_description,
                        a.accompagnato_da, a.accompagnato_da_nome,
-                       c.name as company_name
+                       c.name as company_name,
+                       resp.name as responsabile_name, resp.surname as responsabile_surname,
+                       ar.responsabile_user_id,
+                       ar.nome as articolo_nome
                 FROM tickets t
                 LEFT JOIN activities a ON t.activity_id = a.id
                 LEFT JOIN companies c ON a.company_id = c.id
+                LEFT JOIN articoli ar ON SUBSTRING(t.ticket_code FROM 5 FOR 3) = ar.codice
+                LEFT JOIN users resp ON ar.responsabile_user_id = resp.id
                 WHERE t.id = :ticket_id
                 LIMIT 1
             """)
@@ -447,7 +432,6 @@ class TicketingService:
             print(f"❌ Error getting ticket detail: {e}")
             return None
 
-
     def update_ticket(self, ticket_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a ticket with new data"""
         try:
@@ -490,18 +474,60 @@ class TicketingService:
             self.db.rollback()
             print(f"❌ Error updating ticket: {e}")
             return None
+
     # ===== TASK MANAGEMENT =====
+
+    def list_tasks(self, ticket_id: Optional[int] = None, filters: Optional[Dict] = None) -> List[Dict]:
+        """List tasks with optional filtering"""
+        try:
+            query = text("""
+                SELECT t.id, t.title, t.description, t.status, t.priorita as priority,
+                       t.assigned_to, t.ticket_id, t.milestone_id, t.due_date, t.note,
+                       tk.ticket_code
+                FROM tasks t
+                LEFT JOIN tickets tk ON t.ticket_id = tk.id
+                ORDER BY t.created_at DESC
+            """)
+            
+            result = self.db.execute(query).fetchall()
+            
+            tasks = []
+            for row in result:
+                tasks.append({
+                    "id": str(row.id),
+                    "ticket_id": str(row.ticket_id) if row.ticket_id else None,
+                    "title": row.title,
+                    "description": row.description,
+                    "status": row.status,
+                    "priority": row.priority or "media",
+                    "owner": str(row.assigned_to) if row.assigned_to else None,
+                    "due_date": row.due_date.isoformat() if row.due_date else None,
+                    "milestone_id": None,
+                    "note": row.note,
+                    "predecessor_id": None,
+                    "closed_at": None,
+                    "responsabile_name": None,
+                    "responsabile_id": None,
+                    "articolo_nome": None
+                })
+            
+            return tasks
+            
+        except Exception as e:
+            print(f"❌ Error listing tasks: {e}")
+            return []
 
     def get_task_detail(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed task information by ID - COMPLETO"""
         try:
+            # Prima prova con task_id diretto (UUID)
             query = text("""
                 SELECT t.id, t.title, t.description, t.status, t.priorita, t.assigned_to, t.note,
                        t.milestone_id, t.ticket_id, t.sla_giorni, t.ordine, t.estimated_hours,
                        t.parent_task_id, t.due_date,
                        tk.ticket_code, tk.title as ticket_title,
-                       u.name as owner_name, u.surname as owner_surname
-                       ,resp.name as responsabile_name, resp.surname as responsabile_surname,
+                       u.name as owner_name, u.surname as owner_surname,
+                       resp.name as responsabile_name, resp.surname as responsabile_surname,
                        ar.nome as articolo_nome, ar.responsabile_user_id
                 FROM tasks t
                 LEFT JOIN tickets tk ON t.ticket_id = tk.id
@@ -515,6 +541,27 @@ class TicketingService:
             
             result = self.db.execute(query, {"task_id": task_id}).fetchone()
             
+            # Se non trova con UUID diretto, prova a cercare per INT convertito
+            if not result and task_id.isdigit():
+                query_by_int = text("""
+                    SELECT t.id, t.title, t.description, t.status, t.priorita, t.assigned_to, t.note,
+                           t.milestone_id, t.ticket_id, t.sla_giorni, t.ordine, t.estimated_hours,
+                           t.parent_task_id, t.due_date,
+                           tk.ticket_code, tk.title as ticket_title,
+                           u.name as owner_name, u.surname as owner_surname,
+                           resp.name as responsabile_name, resp.surname as responsabile_surname,
+                           ar.nome as articolo_nome, ar.responsabile_user_id
+                    FROM tasks t
+                    LEFT JOIN tickets tk ON t.ticket_id = tk.id
+                    LEFT JOIN users u ON t.assigned_to = u.id
+                    LEFT JOIN activities a ON tk.activity_id = a.id
+                    LEFT JOIN articoli ar ON SUBSTRING(tk.ticket_code FROM 5 FOR 3) = ar.codice
+                    LEFT JOIN users resp ON ar.responsabile_user_id = resp.id
+                    WHERE (CAST('x' || LPAD(SUBSTR(REPLACE(t.id::text, '-', ''), 1, 8), 8, '0') AS BIT(32))::INT) = :task_id_int
+                    LIMIT 1
+                """)
+                result = self.db.execute(query_by_int, {"task_id_int": int(task_id)}).fetchone()
+            
             if not result:
                 return None
             
@@ -526,8 +573,8 @@ class TicketingService:
             owner_name = f"{result.owner_name} {result.owner_surname}".strip() if result.owner_name else None
             
             return {
-                "id": int(str(result.id).replace("-", "")[:8], 16),  # Converte UUID a int per compatibilità
-                "ticket_id": int(str(result.ticket_id).replace("-", "")[:8], 16),  # Converte UUID a int
+                "id": str(result.id),
+                "ticket_id": str(result.ticket_id),
                 "ticket_code": result.ticket_code,
                 "title": result.title,
                 "description": result.description,
@@ -550,7 +597,6 @@ class TicketingService:
             print(f"❌ Error getting task detail: {e}")
             return None
 
-
     def update_task(self, task_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a task with new data"""
         try:
@@ -561,11 +607,11 @@ class TicketingService:
             # Mappiamo i campi che possono essere aggiornati
             field_mapping = {
                 "title": "title",
-                "description": "description", 
-                "status": "status",
-                "priority": "priorita",
-                "owner": "assigned_to",
-                "note": "note"
+                "description": "description",
+                "status": "status", 
+                "priorita": "priorita",
+                "note": "note",
+                "assigned_to": "assigned_to"
             }
             
             # Solo i campi forniti vengono aggiornati
@@ -594,26 +640,3 @@ class TicketingService:
             self.db.rollback()
             print(f"❌ Error updating task: {e}")
             return None
-    # ===== BUSINESS LOGIC HELPERS =====
-    
-    def auto_close_completed_tickets(self) -> Dict[str, Any]:
-        """Batch operation to auto-close all completed tickets"""
-        tickets = self.db.query(Ticket).all()
-        updated = 0
-        closed_ids = []
-        
-        for ticket in tickets:
-            tasks = self.db.query(Task).filter(Task.ticket_id == ticket.id).all()
-            if tasks and all(t.status == "chiuso" for t in tasks) and ticket.status != 2:
-                ticket.status = 2
-                ticket.updated_at = datetime.utcnow()
-                closed_ids.append(ticket.id)
-                updated += 1
-        
-        self.db.commit()
-        
-        return {
-            "tickets_closed": updated,
-            "closed_ids": closed_ids,
-            "timestamp": datetime.utcnow().isoformat()
-        }

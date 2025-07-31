@@ -33,8 +33,8 @@ class TaskUpdate(BaseModel):
     services: Optional[List[str]] = None
 
 class TaskResponse(BaseModel):
-    id: int
-    ticket_id: int
+    id: str
+    ticket_id: str
     ticket_code: Optional[str]
     title: str
     description: Optional[str]
@@ -56,12 +56,12 @@ class TaskResponse(BaseModel):
         from_attributes = True
 
 class TaskListItem(BaseModel):
-    id: int
+    id: str
     title: str
     description: Optional[str]
     status: str
     priority: str
-    ticket_id: int
+    ticket_id: str
     owner: Optional[str]
     predecessor_id: Optional[int]
     milestone_id: Optional[int]
@@ -97,7 +97,7 @@ class TicketUpdate(BaseModel):
     articolo_nome: Optional[str]
 
 class TicketResponse(BaseModel):
-    id: int
+    id: str
     ticket_code: Optional[str]
     title: str
     description: Optional[str]
@@ -170,8 +170,8 @@ class BulkOperationResult(BaseModel):
 
 class CommercialCommessaRequest(BaseModel):
     """Schema per creazione commessa da kit commerciale"""
-    company_id: int = Field(..., description="ID azienda dal database")
-    kit_commerciale_id: int = Field(..., description="ID kit commerciale")
+    company_id: str = Field(..., description="ID azienda dal database")
+    kit_commerciale_id: str = Field(..., description="ID kit commerciale")
     notes: Optional[str] = Field("", description="Note aggiuntive")
     owner_id: Optional[str] = Field(None, description="Owner, default utente corrente")
 
