@@ -288,6 +288,16 @@ class TicketingService:
             
             self.db.commit()
             
+            # Chiama il hook se lo status è cambiato
+            if "status" in update_data and old_status is not None:
+                new_status = update_data["status"]
+                if old_status != new_status:
+                    try:
+                        import sys; sys.path.append("/var/www/intelligence/backend"); from app.services.task_status_hooks import on_task_status_changed
+                        on_task_status_changed(self.db, task_id, old_status, new_status)
+                    except Exception as hook_error:
+                        print(f"⚠️ Errore hook task status: {hook_error}")
+            
             print(f"✅ Ticket creato: {ticket_code} (ID: {ticket_id})")
             print(f"✅ Milestone creata: {milestone_id}")
             print(f"✅ Task creati: {tasks_created}")
@@ -467,6 +477,16 @@ class TicketingService:
             self.db.execute(update_query, params)
             self.db.commit()
             
+            # Chiama il hook se lo status è cambiato
+            if "status" in update_data and old_status is not None:
+                new_status = update_data["status"]
+                if old_status != new_status:
+                    try:
+                        import sys; sys.path.append("/var/www/intelligence/backend"); from app.services.task_status_hooks import on_task_status_changed
+                        on_task_status_changed(self.db, task_id, old_status, new_status)
+                    except Exception as hook_error:
+                        print(f"⚠️ Errore hook task status: {hook_error}")
+            
             # Restituiamo il ticket aggiornato
             return self.get_ticket_detail(ticket_id)
             
@@ -614,6 +634,14 @@ class TicketingService:
                 "assigned_to": "assigned_to"
             }
             
+            # Se stiamo aggiornando lo status, recuperiamo quello precedente per il hook
+            old_status = None
+            if "status" in update_data:
+                old_status_query = text("SELECT status FROM tasks WHERE id = :task_id")
+                old_status_result = self.db.execute(old_status_query, {"task_id": task_id}).fetchone()
+                if old_status_result:
+                    old_status = old_status_result[0]
+
             # Solo i campi forniti vengono aggiornati
             for field, db_field in field_mapping.items():
                 if field in update_data and update_data[field] is not None:
@@ -632,6 +660,16 @@ class TicketingService:
             
             self.db.execute(update_query, params)
             self.db.commit()
+            
+            # Chiama il hook se lo status è cambiato
+            if "status" in update_data and old_status is not None:
+                new_status = update_data["status"]
+                if old_status != new_status:
+                    try:
+                        import sys; sys.path.append("/var/www/intelligence/backend"); from app.services.task_status_hooks import on_task_status_changed
+                        on_task_status_changed(self.db, task_id, old_status, new_status)
+                    except Exception as hook_error:
+                        print(f"⚠️ Errore hook task status: {hook_error}")
             
             # Restituiamo il task aggiornato
             return self.get_task_detail(task_id)

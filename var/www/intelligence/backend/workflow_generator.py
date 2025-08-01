@@ -188,7 +188,7 @@ class WorkflowGenerator:
             ticket_id = str(uuid4())
             
             activity_query = text("""
-                SELECT title, description, customer_name, customer_id, company_id
+                SELECT title, description, customer_name, customer_id, company_id, crm_activity_id
                 FROM activities 
                 WHERE id = :activity_id
             """)

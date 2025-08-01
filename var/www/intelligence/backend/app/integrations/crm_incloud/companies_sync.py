@@ -60,7 +60,7 @@ def process_company(company_data, db):
     
     # Map CRM data to our Company model
     company_info = {
-        "id": company_id,
+        "id": int(company_id),
         "name": company_data.get("companyName", ""),
         "partita_iva": company_data.get("taxIdentificationNumber", ""),
         "indirizzo": company_data.get("address", ""),

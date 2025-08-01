@@ -25,9 +25,9 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     owner: Optional[str] = None
     note: Optional[str] = None
-    responsabile_name: Optional[str]
-    responsabile_id: Optional[str]
-    articolo_nome: Optional[str]
+    responsabile_name: Optional[str] = None
+    responsabile_id: Optional[str] = None
+    articolo_nome: Optional[str] = None
     predecessor_id: Optional[int] = None
     parent_id: Optional[int] = None
     services: Optional[List[str]] = None
@@ -47,9 +47,9 @@ class TaskResponse(BaseModel):
     predecessor_title: Optional[str]
     closed_at: Optional[datetime]
     note: Optional[str]
-    responsabile_name: Optional[str]
-    responsabile_id: Optional[str]
-    articolo_nome: Optional[str]
+    responsabile_name: Optional[str] = None
+    responsabile_id: Optional[str] = None
+    articolo_nome: Optional[str] = None
     siblings: List[Dict[str, Any]]
     
     class Config:
@@ -67,9 +67,9 @@ class TaskListItem(BaseModel):
     milestone_id: Optional[int]
     closed_at: Optional[datetime]
     note: Optional[str]
-    responsabile_name: Optional[str]
-    responsabile_id: Optional[str]
-    articolo_nome: Optional[str]
+    responsabile_name: Optional[str] = None
+    responsabile_id: Optional[str] = None
+    articolo_nome: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -92,9 +92,9 @@ class TicketUpdate(BaseModel):
     customer_name: Optional[str] = None
     owner: Optional[str] = None
     note: Optional[str] = None
-    responsabile_name: Optional[str]
-    responsabile_id: Optional[str]
-    articolo_nome: Optional[str]
+    responsabile_name: Optional[str] = None
+    responsabile_id: Optional[str] = None
+    articolo_nome: Optional[str] = None
 
 class TicketResponse(BaseModel):
     id: str
@@ -156,9 +156,9 @@ class TaskFilters(BaseModel):
     status: Optional[str] = None
     owner: Optional[str] = None
     note: Optional[str] = None
-    responsabile_name: Optional[str]
-    responsabile_id: Optional[str]
-    articolo_nome: Optional[str]
+    responsabile_name: Optional[str] = None
+    responsabile_id: Optional[str] = None
+    articolo_nome: Optional[str] = None
     priority: Optional[str] = None
 
 class BulkOperationResult(BaseModel):

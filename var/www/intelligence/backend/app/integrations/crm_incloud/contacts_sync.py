@@ -69,46 +69,52 @@ def rate_limited_request(url, headers):
     return response
 
 def process_contact(contact_data, db):
-    """Process single contact and save to DB"""
-    crm_contact_id = contact_data["id"]
+    """Process a single contact with company verification"""
+    contact_id = contact_data.get("id")
+    company_id = contact_data.get("companyId")
     
-    # Estrai email e telefono principali
-    primary_email = None
-    if contact_data.get("emails") and len(contact_data["emails"]) > 0:
-        primary_email = contact_data["emails"][0].get("value")
+    # Se non ha company_id, saltiamo il contatto
+    if not company_id:
+        logger.info(f"⏭️ Contatto {contact_id} senza azienda - saltato")
+        return "skipped"
     
-    primary_phone = None
-    if contact_data.get("phones") and len(contact_data["phones"]) > 0:
-        primary_phone = contact_data["phones"][0].get("value")
+    # Verifica se company_id esiste nella tabella companies
+    company_check = text("SELECT id FROM companies WHERE id = :company_id")
+    company_exists = db.execute(company_check, {"company_id": str(company_id)}).fetchone()
     
-    # Map CRM data to our Contact table structure
+    if not company_exists:
+        logger.warning(f"⚠️ Company {company_id} non trovata per contatto {contact_id} - saltato")
+        return "skipped"
+    
+    # Verifica se il contatto esiste già
+    existing_query = text("SELECT id FROM contacts WHERE note LIKE :crm_id_pattern")
+    crm_id_pattern = f"%ID: {contact_id}%"
+    existing = db.execute(existing_query, {"crm_id_pattern": crm_id_pattern}).fetchone()
+    
+    # Prepara info contatto
     contact_info = {
-        "company_id": contact_data.get("companyId"),  # bigint
+        "company_id": str(company_id),
         "nome": contact_data.get("name", ""),
         "cognome": contact_data.get("surname", ""),
-        "codice": contact_data.get("code", ""),  # Codice cliente CRM
+        "codice": str(contact_data.get("code", "")),
         "indirizzo": contact_data.get("address", ""),
         "citta": contact_data.get("city", ""),
         "cap": contact_data.get("zipCode", ""),
         "provincia": contact_data.get("province", ""),
         "regione": contact_data.get("region", ""),
         "stato": contact_data.get("country", ""),
-        "ruolo_aziendale": contact_data.get("businessRole", ""),
-        "email": primary_email,
-        "telefono": primary_phone,
-        "note": f"Importato da CRM - ID: {crm_contact_id}",
+        "ruolo_aziendale": contact_data.get("jobTitle", ""),
+        "email": contact_data.get("email"),
+        "telefono": contact_data.get("phone", ""),
+        "note": f"Importato da CRM - ID: {contact_id}",
         "sorgente": "CRM_INCLOUD",
-        "data_nascita": contact_data.get("birthDay"),
+        "data_nascita": None,
         "luogo_nascita": contact_data.get("birthPlace", ""),
         "codice_fiscale": contact_data.get("taxCode", "")
     }
     
-    # Check if contact exists by CRM ID in note field
-    check_query = text("SELECT id FROM contacts WHERE note LIKE :crm_id_pattern")
-    existing = db.execute(check_query, {"crm_id_pattern": f"%ID: {crm_contact_id}%"}).first()
-    
     if not existing:
-        # Insert new contact - UUID will be auto-generated
+        # Create new contact
         insert_query = text("""
         INSERT INTO contacts (
             company_id, nome, cognome, codice, indirizzo, citta, cap, 
@@ -150,6 +156,7 @@ def sync_contacts_from_crm(limit=50):
         "contacts_checked": 0,
         "contacts_created": 0, 
         "contacts_updated": 0,
+        "contacts_skipped": 0,
         "errors": 0,
         "start_time": datetime.utcnow().isoformat()
     }
@@ -189,6 +196,8 @@ def sync_contacts_from_crm(limit=50):
                     stats["contacts_created"] += 1
                 elif result == "updated":
                     stats["contacts_updated"] += 1
+                elif result == "skipped":
+                    stats["contacts_skipped"] += 1
                 
                 # Commit ogni 10 contatti
                 if (i + 1) % 10 == 0:
