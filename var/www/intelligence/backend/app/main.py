@@ -7,7 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from fastapi.responses import HTMLResponse
 import uvicorn
-
+import time
+from collections import defaultdict, deque
+from typing import Dict, Deque
+from datetime import datetime, timedelta
 # Import routes
 from app.routes import auth
 from app.api.v1 import ai_routes
@@ -23,6 +26,10 @@ from app.routes import intellivoice_record
 
 # Database
 from app.database import create_tables
+# Rate limiting storage (in-memory, non invasivo)
+request_counts: Dict[str, Deque[float]] = defaultdict(lambda: deque(maxlen=100))
+blocked_ips: Dict[str, float] = {}  # IP -> timestamp when block expires
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -74,6 +81,74 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     
+    return response
+
+
+# Security middleware da aggiungere DOPO il middleware CORS esistente
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    client_ip = request.client.host
+    current_time = time.time()
+    
+    # 1. Verifica se IP è temporaneamente bloccato
+    if client_ip in blocked_ips:
+        if current_time < blocked_ips[client_ip]:
+            # IP ancora bloccato
+            return Response(
+                content="Rate limit exceeded. Access temporarily restricted.",
+                status_code=429,
+                headers={"Retry-After": "300"}  # 5 minuti
+            )
+        else:
+            # Rimuovi blocco scaduto
+            del blocked_ips[client_ip]
+    
+    # 2. Rate limiting: max 60 richieste per minuto per IP
+    minute_ago = current_time - 60
+    ip_requests = request_counts[client_ip]
+    
+    # Rimuovi richieste vecchie
+    while ip_requests and ip_requests[0] < minute_ago:
+        ip_requests.popleft()
+    
+    # Controlla limite
+    if len(ip_requests) >= 60:  # 60 req/min
+        # Blocca IP per 5 minuti
+        blocked_ips[client_ip] = current_time + 300
+        print(f"🚨 SECURITY: IP {client_ip} blocked for rate limiting")
+        return Response(
+            content="Too many requests. Access temporarily restricted.",
+            status_code=429,
+            headers={"Retry-After": "300"}
+        )
+    
+    # 3. Blocca metodi HTTP sospetti
+    suspicious_methods = ["OPTIONS", "TRACE", "CONNECT"]
+    if request.method in suspicious_methods:
+        print(f"🚨 SECURITY: Blocked {request.method} from {client_ip}")
+        return Response(
+            content="Method not allowed",
+            status_code=405,
+            headers={"Allow": "GET, POST, PUT, DELETE"}
+        )
+    
+    # 4. Blocca pattern URL sospetti
+    suspicious_patterns = [
+        "/nice%20ports", "/Trinity.txt", "/devicedesc.xml",
+        "/webui", "/owa/", "/.env", "/config", "/admin"
+    ]
+    
+    url_path = str(request.url.path).lower()
+    for pattern in suspicious_patterns:
+        if pattern.lower() in url_path:
+            print(f"🚨 SECURITY: Blocked suspicious URL {url_path} from {client_ip}")
+            return Response(content="Not Found", status_code=404)
+    
+    # 5. Log richiesta normale
+    ip_requests.append(current_time)
+    
+    # Processa richiesta normale
+    response = await call_next(request)
     return response
 
 # Include routers con prefix che match frontend

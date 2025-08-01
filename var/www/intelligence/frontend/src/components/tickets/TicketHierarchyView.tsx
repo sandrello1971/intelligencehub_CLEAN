@@ -232,7 +232,7 @@ const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigge
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center' }}>
           <TreeIcon sx={{ mr: 1, color: 'primary.main' }} />
-          Vista Albero Ticket Commerciali
+          Vista Albero Ticket Customer Care
         </Typography>
         <Typography variant="body2" color="textSecondary">
           Seleziona un'azienda per visualizzare la gerarchia dei ticket commerciali
@@ -357,7 +357,7 @@ const TicketHierarchyView: React.FC<TicketHierarchyViewProps> = ({ refreshTrigge
             <Box>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
                 <AssignmentIcon sx={{ mr: 1 }} />
-                Ticket Commerciali Padre ({hierarchy.tickets_padre.length})
+                Ticket Customer Care Padre ({hierarchy.tickets_padre.length})
               </Typography>
 
               {hierarchy.tickets_padre.map((ticket, index) => (

@@ -150,6 +150,10 @@ async def update_article(article_id: int, article_data: dict, db: Session = Depe
         update_fields = []
         params = {"article_id": article_id}
         
+        if "codice" in article_data:
+            update_fields.append("codice = :codice")
+            params["codice"] = article_data["codice"]
+            
         if "nome" in article_data:
             update_fields.append("nome = :nome")
             params["nome"] = article_data["nome"]

@@ -72,7 +72,7 @@ const CommercialTickets: React.FC = () => {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Gestione Ticket Commerciali
+          Gestione Ticket Customer Care
         </Typography>
         <Typography variant="body1" color="textSecondary">
           Crea e gestisci ticket commerciali basati sui kit configurati
