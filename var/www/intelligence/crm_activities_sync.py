@@ -157,7 +157,7 @@ class CRMActivitiesSync:
         
         for activity_id in activity_ids:
             try:
-                url = f"{CRM_BASE_URL}/api/v1/Activity/{activity_id}"
+                url = f"{CRM_BASE_URL}/api/v1/Activity/{activity_id}/GetFull"
                 response = self.rate_limited_request(url)
                 activity_data = response.json()
                 

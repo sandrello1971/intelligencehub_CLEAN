@@ -86,3 +86,42 @@ def confirm_create_opportunities(task_id: str, db: Session = Depends(get_db)):
         "task_id": task_id,
         "ticket_id": task["ticket_id"]
     }
+
+@router.patch("/ticket/{ticket_id}/reorder")
+def reorder_ticket_tasks(
+    ticket_id: str,
+    tasks_order: List[dict],
+    db: Session = Depends(get_db)
+):
+    """Riordina i task di un ticket"""
+    try:
+        updated_count = 0
+        
+        for task_data in tasks_order:
+            task_id = task_data.get("id")
+            nuovo_ordine = task_data.get("ordine")
+            
+            if task_id and nuovo_ordine is not None:
+                # Aggiorna ordine nel database
+                result = db.execute(
+                    text("UPDATE tasks SET ordine = :ordine WHERE id = :task_id AND ticket_id = :ticket_id"),
+                    {
+                        "ordine": nuovo_ordine,
+                        "task_id": task_id,
+                        "ticket_id": ticket_id
+                    }
+                )
+                if result.rowcount > 0:
+                    updated_count += 1
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "updated_tasks": updated_count,
+            "message": f"Ordine aggiornato per {updated_count} task"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Errore riordinamento task: {str(e)}")

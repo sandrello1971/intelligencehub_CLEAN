@@ -188,9 +188,11 @@ class WorkflowGenerator:
             ticket_id = str(uuid4())
             
             activity_query = text("""
-                SELECT title, description, customer_name, customer_id, company_id, crm_activity_id
-                FROM activities 
-                WHERE id = :activity_id
+                SELECT a.title, a.description, a.customer_name, a.customer_id, a.company_id, a.crm_activity_id,
+                       COALESCE(a.customer_name, c.name) as resolved_customer_name
+                FROM activities a
+                LEFT JOIN companies c ON c.id = a.customer_id::bigint
+                WHERE a.id = :activity_id
             """)
             activity = self.db.execute(activity_query, {"activity_id": activity_id}).fetchone()
             
@@ -198,12 +200,12 @@ class WorkflowGenerator:
                 logger.error(f"❌ Attività {activity_id} non trovata")
                 return None
             
-            title = f"{kit_details['nome']} - {activity.customer_name or 'Cliente'}"
+            title = f"{kit_details['nome']} - {activity.resolved_customer_name or 'Cliente'}"
             description = f"""Ticket generato automaticamente da CRM Intelligence
 
 🎯 Kit Commerciale: {kit_details['nome']}
 📋 Servizio: {kit_details['articolo_nome']} ({kit_details['codice']})
-🏢 Cliente: {activity.customer_name or 'N/A'}
+🏢 Cliente: {activity.resolved_customer_name or 'N/A'}
 👤 Account Manager: {user_details['full_name']}
 ⚡ Workflow: {workflow_details['nome']}
 
@@ -234,7 +236,7 @@ class WorkflowGenerator:
                 "status": "aperto",
                 "priority": "media",
                 "activity_id": activity_id,
-                "company_id": activity.company_id,
+                "company_id": activity.customer_id,
                 "assigned_to": kit_details.get("responsabile_user_id") or user_details["id"],
                 "created_by": user_details['id'],
                 "articolo_id": kit_details['articolo_id'],

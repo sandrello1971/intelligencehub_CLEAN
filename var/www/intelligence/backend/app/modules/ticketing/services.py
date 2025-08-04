@@ -329,7 +329,7 @@ class TicketingService:
                        c.name as company_name
                 FROM tickets t
                 LEFT JOIN activities a ON t.activity_id = a.id
-                LEFT JOIN companies c ON a.company_id = c.id
+                LEFT JOIN companies c ON t.company_id = c.id
                 ORDER BY t.created_at DESC
             """)
             
@@ -338,7 +338,7 @@ class TicketingService:
             tickets = []
             for row in result:
                 # Recupera task per questo ticket
-                task_query = text("SELECT id, title, status FROM tasks WHERE ticket_id = :ticket_id")
+                task_query = text("SELECT id, title, status FROM tasks WHERE ticket_id = :ticket_id ORDER BY ordine ASC, created_at ASC")
                 tasks_result = self.db.execute(task_query, {"ticket_id": str(row.id)}).fetchall()
                 
                 tasks = [{"id": str(t.id), "title": t.title, "status": t.status} for t in tasks_result]
@@ -390,7 +390,7 @@ class TicketingService:
                        ar.nome as articolo_nome
                 FROM tickets t
                 LEFT JOIN activities a ON t.activity_id = a.id
-                LEFT JOIN companies c ON a.company_id = c.id
+                LEFT JOIN companies c ON t.company_id = c.id
                 LEFT JOIN articoli ar ON SUBSTRING(t.ticket_code FROM 5 FOR 3) = ar.codice
                 LEFT JOIN users resp ON ar.responsabile_user_id = resp.id
                 WHERE t.id = :ticket_id
@@ -403,7 +403,7 @@ class TicketingService:
                 return None
             
             # Recupera task per questo ticket
-            task_query = text("SELECT id, title, status FROM tasks WHERE ticket_id = :ticket_id")
+            task_query = text("SELECT id, title, status FROM tasks WHERE ticket_id = :ticket_id ORDER BY ordine ASC, created_at ASC")
             tasks_result = self.db.execute(task_query, {"ticket_id": ticket_id}).fetchall()
             
             tasks = [{"id": str(t.id), "title": t.title, "status": t.status} for t in tasks_result]
@@ -434,6 +434,10 @@ class TicketingService:
                 "responsabile_name": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else None,
                 "responsabile_id": str(result.responsabile_user_id) if result.responsabile_user_id else None,
                 "articolo_nome": result.articolo_nome,
+                # Campi owner per compatibilità frontend
+                "owner": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else "Non assegnato",
+                "assigned_to": str(result.responsabile_user_id) if result.responsabile_user_id else None,
+                "assigned_user_name": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else None,
                 "tasks": tasks,
                 "tasks_stats": task_stats
             }
@@ -610,6 +614,10 @@ class TicketingService:
                 "responsabile_name": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else None,
                 "responsabile_id": str(result.responsabile_user_id) if result.responsabile_user_id else None,
                 "articolo_nome": result.articolo_nome,
+                # Campi owner per compatibilità frontend
+                "owner": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else "Non assegnato",
+                "assigned_to": str(result.responsabile_user_id) if result.responsabile_user_id else None,
+                "assigned_user_name": f"{result.responsabile_name} {result.responsabile_surname}".strip() if result.responsabile_name else None,
                 "siblings": siblings
             }
             

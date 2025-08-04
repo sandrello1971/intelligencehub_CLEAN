@@ -221,11 +221,27 @@ def get_commercial_hierarchy(
         
         if ticket_detail:
             # Logica per distinguere ticket padre da figli
-            # Ticket padre: quelli con [COMMERCIALE] nel titolo o ticket_code che inizia con TCK-SOF
-            is_padre = (
-                "[COMMERCIALE]" in ticket.title or 
-                (ticket.ticket_code and ticket.ticket_code.startswith("TCK-SOF"))
-            )
+            # Ticket padre: quelli con [COMMERCIALE] nel titolo o ticket_code con sigla di kit commerciale
+            is_padre = False
+            
+            if "[COMMERCIALE]" in ticket.title:
+                is_padre = True
+            elif ticket.ticket_code:
+                # Estrai sigla dal ticket_code (TCK-XXX-...)
+                import re
+                match = re.match(r'TCK-([A-Z]+)-', ticket.ticket_code)
+                if match:
+                    sigla = match.group(1)
+                    
+                    # Verifica se la sigla corrisponde a un articolo principale di kit commerciale
+                    from sqlalchemy import text
+                    kit_query = text("""
+                        SELECT COUNT(*) FROM kit_commerciali k
+                        JOIN articoli a ON k.articolo_principale_id = a.id
+                        WHERE a.codice = :sigla AND k.attivo = true
+                    """)
+                    result = db.execute(kit_query, {"sigla": sigla}).fetchone()
+                    is_padre = result[0] > 0 if result else False
             
             if is_padre:
                 tickets_padre.append(ticket_detail)

@@ -135,7 +135,7 @@ async def security_middleware(request: Request, call_next):
     # 4. Blocca pattern URL sospetti
     suspicious_patterns = [
         "/nice%20ports", "/Trinity.txt", "/devicedesc.xml",
-        "/webui", "/owa/", "/.env", "/config", "/admin"
+        "/webui", "/owa/", "/.env", "/config", "/admin/phpmyadmin", "/admin/login", "/admin/panel"
     ]
     
     url_path = str(request.url.path).lower()
